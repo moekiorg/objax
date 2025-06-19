@@ -10,6 +10,12 @@ export const Do = createToken({ name: 'Do', pattern: /do/ });
 export const Is = createToken({ name: 'Is', pattern: /is/ });
 export const A = createToken({ name: 'A', pattern: /a/ });
 export const New = createToken({ name: 'New', pattern: /new/ });
+export const Set = createToken({ name: 'Set', pattern: /set/ });
+export const Of = createToken({ name: 'Of', pattern: /of/ });
+export const To = createToken({ name: 'To', pattern: /to/ });
+export const Myself = createToken({ name: 'Myself', pattern: /myself/ });
+export const True = createToken({ name: 'True', pattern: /true/ });
+export const False = createToken({ name: 'False', pattern: /false/ });
 
 export const Identifier = createToken({
   name: 'Identifier',
@@ -22,10 +28,6 @@ export const StringLiteral = createToken({
 export const NumberLiteral = createToken({
   name: 'NumberLiteral',
   pattern: /\d+(\.\d+)?/,
-});
-export const BooleanLiteral = createToken({
-  name: 'BooleanLiteral',
-  pattern: /true|false/,
 });
 
 export const WhiteSpace = createToken({
@@ -53,7 +55,12 @@ export const allTokens = [
   Is,
   A,
   New,
-  BooleanLiteral,
+  Set,
+  Of,
+  To,
+  Myself,
+  True,
+  False,
   NumberLiteral,
   StringLiteral,
   Identifier,

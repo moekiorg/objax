@@ -3,10 +3,14 @@ import {
   allTokens,
   Default,
   Define,
+  Do,
+  False,
   Field,
   Has,
   Identifier,
+  Method,
   StringLiteral,
+  True,
 } from './lexer';
 
 export class ObjaxParser extends CstParser {
@@ -34,7 +38,10 @@ export class ObjaxParser extends CstParser {
   });
 
   classBody = this.RULE('classBody', () => {
-    this.OR([{ ALT: () => this.SUBRULE(this.fieldDeclaration) }]);
+    this.OR([
+      { ALT: () => this.SUBRULE(this.fieldDeclaration) },
+      { ALT: () => this.SUBRULE(this.methodDeclaration) },
+    ]);
   });
 
   fieldDeclaration = this.RULE('fieldDeclaration', () => {
@@ -49,9 +56,31 @@ export class ObjaxParser extends CstParser {
     });
   });
 
+  methodDeclaration = this.RULE('methodDeclaration', () => {
+    this.CONSUME(Identifier, { LABEL: 'className' });
+    this.CONSUME(Has);
+    this.CONSUME(Method);
+    this.CONSUME(StringLiteral, { LABEL: 'methodName' });
+    this.CONSUME(Do);
+    this.SUBRULE(this.methodBody, { LABEL: 'body' });
+  });
+
+  methodBody = this.RULE('methodBody', () => {
+    this.MANY(() => {
+      this.OR([
+        { ALT: () => this.CONSUME(Identifier) },
+        { ALT: () => this.CONSUME(StringLiteral) },
+        { ALT: () => this.CONSUME(True) },
+        { ALT: () => this.CONSUME(False) },
+      ]);
+    });
+  });
+
   literal = this.RULE('literal', () => {
     this.OR([
       { ALT: () => this.CONSUME(StringLiteral) },
+      { ALT: () => this.CONSUME(True) },
+      { ALT: () => this.CONSUME(False) },
       // Add more literal types as needed
     ]);
   });

@@ -4,6 +4,7 @@ import type {
   ObjaxClassDefinition,
   ObjaxExecutionResult,
   ObjaxFieldDefinition,
+  ObjaxMethodDefinition,
 } from './types';
 
 export class ObjaxInterpreter {
@@ -50,6 +51,7 @@ export class ObjaxInterpreter {
           const className = classDef.children.className[0].image;
 
           const fields: ObjaxFieldDefinition[] = [];
+          const methods: ObjaxMethodDefinition[] = [];
 
           if (classDef.children.classBody) {
             for (const body of classDef.children.classBody) {
@@ -60,9 +62,45 @@ export class ObjaxInterpreter {
                   -1,
                 ); // Remove quotes
 
+                let defaultValue: any = undefined;
+                
+                if (fieldDecl.children.defaultValue) {
+                  const defaultValueNode = fieldDecl.children.defaultValue[0];
+                  if (defaultValueNode.children.StringLiteral) {
+                    defaultValue = defaultValueNode.children.StringLiteral[0].image.slice(1, -1);
+                  } else if (defaultValueNode.children.True) {
+                    defaultValue = true;
+                  } else if (defaultValueNode.children.False) {
+                    defaultValue = false;
+                  }
+                }
+
                 fields.push({
                   name: fieldName,
-                  defaultValue: undefined, // TODO: Extract default value
+                  defaultValue,
+                });
+              } else if (body.children.methodDeclaration) {
+                const methodDecl = body.children.methodDeclaration[0];
+                const methodName = methodDecl.children.methodName[0].image.slice(1, -1); // Remove quotes
+                
+                // Extract method body tokens as string
+                let methodBody = '';
+                if (methodDecl.children.body && methodDecl.children.body[0].children) {
+                  const bodyTokens = [];
+                  for (const item of Object.values(methodDecl.children.body[0].children)) {
+                    if (Array.isArray(item)) {
+                      for (const token of item) {
+                        bodyTokens.push(token.image);
+                      }
+                    }
+                  }
+                  methodBody = bodyTokens.join(' ');
+                }
+
+                methods.push({
+                  name: methodName,
+                  parameters: [],
+                  body: methodBody,
                 });
               }
             }
@@ -71,7 +109,7 @@ export class ObjaxInterpreter {
           classes.push({
             name: className,
             fields,
-            methods: [],
+            methods,
           });
         }
       }
