@@ -1,35 +1,27 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import { useObjaxStore } from './stores/objaxStore'
+import { PageGrid } from './components/PageGrid'
 
 function App() {
-  const [count, setCount] = useState(0)
+  const { currentPage } = useObjaxStore()
 
-  return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
+  if (currentPage) {
+    return (
+      <div className="min-h-screen bg-gray-100">
+        <div className="text-center py-8">
+          <h1 className="text-2xl font-bold">Page: {currentPage}</h1>
+          <p className="text-gray-600">Page editor will be implemented here</p>
+          <button
+            onClick={() => useObjaxStore.getState().setCurrentPage(null)}
+            className="mt-4 px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700"
+          >
+            Back to Pages
+          </button>
+        </div>
       </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
+    )
+  }
+
+  return <PageGrid />
 }
 
 export default App
