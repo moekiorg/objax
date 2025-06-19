@@ -1,14 +1,14 @@
-import { ObjaxInterpreter } from './interpreter';
+import { LinearObjaxParser } from './linearParser';
 import type { ObjaxExecutionResult } from './types';
 
 export class ObjaxEngine {
-  private interpreter: ObjaxInterpreter;
+  private parser: LinearObjaxParser;
 
   constructor() {
-    this.interpreter = new ObjaxInterpreter();
+    this.parser = new LinearObjaxParser();
   }
 
   execute(code: string): ObjaxExecutionResult {
-    return this.interpreter.execute(code);
+    return this.parser.parse(code);
   }
 }
