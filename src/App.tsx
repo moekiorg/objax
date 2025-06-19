@@ -1,8 +1,8 @@
-import { useObjaxStore } from './stores/objaxStore'
-import { PageGrid } from './components/PageGrid'
+import { PageGrid } from './components/PageGrid';
+import { useObjaxStore } from './stores/objaxStore';
 
 function App() {
-  const { currentPage } = useObjaxStore()
+  const { currentPage } = useObjaxStore();
 
   if (currentPage) {
     return (
@@ -18,10 +18,10 @@ function App() {
           </button>
         </div>
       </div>
-    )
+    );
   }
 
-  return <PageGrid />
+  return <PageGrid />;
 }
 
-export default App
+export default App;
