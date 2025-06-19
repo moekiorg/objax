@@ -10,7 +10,7 @@ export const Do = createToken({ name: 'Do', pattern: /do/ });
 export const Is = createToken({ name: 'Is', pattern: /is/ });
 export const A = createToken({ name: 'A', pattern: /a/ });
 export const New = createToken({ name: 'New', pattern: /new/ });
-export const Set = createToken({ name: 'Set', pattern: /set/ });
+export const SetKeyword = createToken({ name: 'SetKeyword', pattern: /set/ });
 export const Of = createToken({ name: 'Of', pattern: /of/ });
 export const To = createToken({ name: 'To', pattern: /to/ });
 export const Myself = createToken({ name: 'Myself', pattern: /myself/ });
@@ -45,6 +45,7 @@ export const Comment = createToken({
 export const allTokens = [
   WhiteSpace,
   Comment,
+  // Keywords should come before Identifier
   Define,
   Has,
   Field,
@@ -55,14 +56,16 @@ export const allTokens = [
   Is,
   A,
   New,
-  Set,
+  SetKeyword,
   Of,
   To,
   Myself,
   True,
   False,
+  // Literals
   NumberLiteral,
   StringLiteral,
+  // Identifier should be last to avoid conflicts
   Identifier,
 ];
 

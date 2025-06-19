@@ -9,7 +9,11 @@ import {
   Has,
   Identifier,
   Method,
+  Myself,
+  Of,
+  SetKeyword,
   StringLiteral,
+  To,
   True,
 } from './lexer';
 
@@ -66,14 +70,24 @@ export class ObjaxParser extends CstParser {
   });
 
   methodBody = this.RULE('methodBody', () => {
-    this.MANY(() => {
-      this.OR([
-        { ALT: () => this.CONSUME(Identifier) },
-        { ALT: () => this.CONSUME(StringLiteral) },
-        { ALT: () => this.CONSUME(True) },
-        { ALT: () => this.CONSUME(False) },
-      ]);
-    });
+    this.SUBRULE(this.methodStatement);
+  });
+
+  methodStatement = this.RULE('methodStatement', () => {
+    this.OR([
+      { ALT: () => this.SUBRULE(this.setStatement) },
+      // Add more statement types as needed
+    ]);
+  });
+
+  setStatement = this.RULE('setStatement', () => {
+    this.CONSUME(SetKeyword);
+    this.CONSUME(Field);
+    this.CONSUME(StringLiteral, { LABEL: 'fieldName' });
+    this.CONSUME(Of);
+    this.CONSUME(Myself);
+    this.CONSUME(To);
+    this.SUBRULE(this.literal, { LABEL: 'value' });
   });
 
   literal = this.RULE('literal', () => {

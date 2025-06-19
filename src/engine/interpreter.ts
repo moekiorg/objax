@@ -86,14 +86,25 @@ export class ObjaxInterpreter {
                 // Extract method body tokens as string
                 let methodBody = '';
                 if (methodDecl.children.body && methodDecl.children.body[0].children) {
-                  const bodyTokens = [];
-                  for (const item of Object.values(methodDecl.children.body[0].children)) {
-                    if (Array.isArray(item)) {
-                      for (const token of item) {
-                        bodyTokens.push(token.image);
+                  const bodyTokens: string[] = [];
+                  
+                  const extractTokensFromNode = (node: any) => {
+                    if (node && node.children) {
+                      for (const [key, value] of Object.entries(node.children)) {
+                        if (Array.isArray(value)) {
+                          for (const item of value) {
+                            if (item.image) {
+                              bodyTokens.push(item.image);
+                            } else {
+                              extractTokensFromNode(item);
+                            }
+                          }
+                        }
                       }
                     }
-                  }
+                  };
+                  
+                  extractTokensFromNode(methodDecl.children.body[0]);
                   methodBody = bodyTokens.join(' ');
                 }
 
