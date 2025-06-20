@@ -660,7 +660,7 @@ export class LinearObjaxParser {
     const messageExecution: ObjaxMessageExecution = {
       targetInstance,
       code,
-      context: 'self'
+      context: 'it'
     }
 
     this.messageExecutions.push(messageExecution)

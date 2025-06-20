@@ -7,7 +7,7 @@ describe('Message Execution', () => {
       define Task
       Task has field "title"
       myTask is a new Task
-      message to myTask "set field 'title' of self to 'Hello'"
+      message to myTask "set field 'title' of it to 'Hello'"
     `;
     
     const parser = new LinearObjaxParser();
@@ -16,17 +16,17 @@ describe('Message Execution', () => {
     expect(result.errors).toHaveLength(0);
     expect(result.messageExecutions).toHaveLength(1);
     expect(result.messageExecutions[0].targetInstance).toBe('myTask');
-    expect(result.messageExecutions[0].code).toBe("set field 'title' of self to 'Hello'");
-    expect(result.messageExecutions[0].context).toBe('self');
+    expect(result.messageExecutions[0].code).toBe("set field 'title' of it to 'Hello'");
+    expect(result.messageExecutions[0].context).toBe('it');
   });
 
-  it('should execute message with self context', () => {
+  it('should execute message with it context', () => {
     const code = `
       define Task
       Task has field "title"
       Task has method "setTitle" do set field "title" of myself to "Updated"
       myTask is a new Task
-      message to myTask "call 'setTitle' on self"
+      message to myTask "call 'setTitle' on it"
     `;
     
     const parser = new LinearObjaxParser();
@@ -45,8 +45,8 @@ describe('Message Execution', () => {
       Task has field "title"
       myTask is a new Task
       otherTask is a new Task
-      message to myTask "set field 'title' of self to 'First'"
-      message to otherTask "set field 'title' of self to 'Second'"
+      message to myTask "set field 'title' of it to 'First'"
+      message to otherTask "set field 'title' of it to 'Second'"
     `;
     
     const parser = new LinearObjaxParser();

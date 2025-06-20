@@ -352,8 +352,8 @@ export class ObjaxExecutor {
       throw new Error(`Target instance "${messageExecution.targetInstance}" not found`)
     }
 
-    // Parse the code with 'self' context - replace 'self' with the target instance name
-    const contextualCode = messageExecution.code.replace(/\bself\b/g, messageExecution.targetInstance)
+    // Parse the code with 'it' context - replace 'it' with the target instance name
+    const contextualCode = messageExecution.code.replace(/\bit\b/g, messageExecution.targetInstance)
     
     // Execute the contextual code by creating a sub-parser
     // For now, we'll implement a simple substitution and re-parse approach

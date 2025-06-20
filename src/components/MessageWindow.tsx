@@ -27,13 +27,13 @@ export const MessageWindow: React.FC<MessageWindowProps> = ({
         
         <div className="mb-4">
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            Objax Code (self = {targetInstance})
+            Objax Code (it = {targetInstance})
           </label>
           <textarea
             value={code}
             onChange={(e) => setCode(e.target.value)}
             placeholder="Enter Objax code here...
-Example: set field 'title' of self to 'Hello'"
+Example: set field 'title' of it to 'Hello'"
             className="w-full h-32 p-3 border border-gray-300 rounded-md resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
         </div>

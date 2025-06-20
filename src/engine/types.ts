@@ -88,5 +88,5 @@ export interface ObjaxPrintStatement {
 export interface ObjaxMessageExecution {
   targetInstance: string;
   code: string;
-  context: 'self'; // selfコンテキストでの実行
+  context: 'it'; // itコンテキストでの実行
 }
