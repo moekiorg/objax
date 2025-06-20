@@ -63,4 +63,40 @@ myTask is a new Task`;
     expect(result.instances[0].name).toBe('myTask');
     expect(result.instances[0].className).toBe('Task');
   });
+
+  it('should parse page navigation', () => {
+    const engine = new ObjaxEngine();
+    const code = 'go to page "HomePage"';
+
+    const result = engine.execute(code);
+    expect(result.errors).toHaveLength(0);
+    expect(result.pageNavigations).toHaveLength(1);
+    expect(result.pageNavigations[0].pageName).toBe('HomePage');
+  });
+
+  it('should execute FieldMorph add method with parameter', () => {
+    const engine = new ObjaxEngine();
+    const code = `title is a new FieldMorph
+title add "Hello World"`;
+
+    // Include FieldMorph class definition
+    const result = engine.execute(code, [
+      {
+        name: 'FieldMorph',
+        fields: [
+          { name: 'label', defaultValue: 'フィールド' },
+          { name: 'value', defaultValue: '' }
+        ],
+        methods: [
+          { name: 'add', parameters: [], body: 'set field "value" of myself to parameter' }
+        ]
+      }
+    ], []);
+
+    expect(result.errors).toHaveLength(0);
+    expect(result.instances).toHaveLength(1);
+    expect(result.instances[0].name).toBe('title');
+    expect(result.instances[0].className).toBe('FieldMorph');
+    expect(result.instances[0].properties.value).toBe('Hello World');
+  });
 });

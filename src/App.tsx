@@ -1,24 +1,36 @@
+import { useEffect } from 'react';
 import { PageGrid } from './components/PageGrid';
+import { CanvasView } from './components/CanvasView';
 import { useObjaxStore } from './stores/objaxStore';
 
 function App() {
-  const { currentPage } = useObjaxStore();
+  const { currentPage, setCurrentPage } = useObjaxStore();
+
+  // Handle browser back/forward navigation
+  useEffect(() => {
+    const handlePopState = (event: PopStateEvent) => {
+      const page = event.state?.page || null;
+      console.log('Browser navigation detected, switching to page:', page);
+      setCurrentPage(page);
+    };
+
+    // Initialize page from URL on first load
+    const urlParams = new URLSearchParams(window.location.search);
+    const pageFromUrl = urlParams.get('page');
+    if (pageFromUrl && pageFromUrl !== currentPage) {
+      console.log('Initializing page from URL:', pageFromUrl);
+      setCurrentPage(pageFromUrl);
+    }
+
+    window.addEventListener('popstate', handlePopState);
+    
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, [setCurrentPage, currentPage]);
 
   if (currentPage) {
-    return (
-      <div className="min-h-screen bg-gray-100">
-        <div className="text-center py-8">
-          <h1 className="text-2xl font-bold">Page: {currentPage}</h1>
-          <p className="text-gray-600">Page editor will be implemented here</p>
-          <button
-            onClick={() => useObjaxStore.getState().setCurrentPage(null)}
-            className="mt-4 px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700"
-          >
-            Back to Pages
-          </button>
-        </div>
-      </div>
-    );
+    return <CanvasView pageName={currentPage} />;
   }
 
   return <PageGrid />;
