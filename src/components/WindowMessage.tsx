@@ -13,12 +13,15 @@ export const WindowMessage: React.FC<WindowMessageProps> = ({
 
   const handleSend = () => {
     onSend(code);
+    setCode(''); // Clear after sending
   };
+
+  const isDisabled = !code || code.trim().length === 0;
 
   return (
     <div className="window-message" style={{ padding: '16px', height: '100%', display: 'flex', flexDirection: 'column' }}>
-      <div style={{ marginBottom: '12px' }}>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
+      <div style={{ flex: 1, marginBottom: '12px', display: 'flex', flexDirection: 'column' }}>
+        <label style={{ marginBottom: '8px', fontSize: '14px', fontWeight: '500', color: '#374151' }}>
           Objax Code (it = {targetInstance})
         </label>
         <textarea
@@ -26,16 +29,33 @@ export const WindowMessage: React.FC<WindowMessageProps> = ({
           onChange={(e) => setCode(e.target.value)}
           placeholder="Enter Objax code here...
 Example: set field 'title' of it to 'Hello'"
-          className="w-full h-32 p-3 border border-gray-300 rounded-md resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
-          style={{ flex: 1, minHeight: '100px' }}
+          style={{ 
+            flex: 1, 
+            minHeight: '100px',
+            padding: '12px',
+            border: '1px solid #d1d5db',
+            borderRadius: '6px',
+            resize: 'none',
+            outline: 'none',
+            fontFamily: 'monospace'
+          }}
         />
       </div>
       
-      <div className="flex justify-end gap-2">
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
         <button
           onClick={handleSend}
-          disabled={!code.trim()}
-          className="px-4 py-2 text-white bg-blue-500 rounded-md hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed"
+          disabled={isDisabled}
+          style={{
+            padding: '8px 16px',
+            backgroundColor: isDisabled ? '#9ca3af' : '#3b82f6',
+            color: 'white',
+            border: 'none',
+            borderRadius: '6px',
+            cursor: isDisabled ? 'not-allowed' : 'pointer',
+            fontSize: '14px',
+            fontWeight: '500'
+          }}
         >
           Send
         </button>
