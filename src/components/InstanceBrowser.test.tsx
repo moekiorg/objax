@@ -63,7 +63,7 @@ describe('InstanceBrowser', () => {
     expect(screen.queryByText('button2')).not.toBeInTheDocument();
   });
 
-  it('should render clickable items for inspector', () => {
+  it('should render inspect and message buttons for each instance', () => {
     const instances = [
       { 
         id: '1', 
@@ -83,11 +83,13 @@ describe('InstanceBrowser', () => {
 
     render(<InstanceBrowser pageName="TestPage" instances={instances} />);
     
-    const clickableItems = screen.getAllByTitle('クリックしてインスペクターを開く');
-    expect(clickableItems).toHaveLength(2);
+    const inspectButtons = screen.getAllByText('Inspect');
+    const messageButtons = screen.getAllByText('Message');
+    expect(inspectButtons).toHaveLength(2);
+    expect(messageButtons).toHaveLength(2);
   });
 
-  it('should call onInspect when item is clicked', () => {
+  it('should call onInspect when inspect button is clicked', () => {
     const mockOnInspect = vi.fn();
     const instances = [
       { 
@@ -101,8 +103,8 @@ describe('InstanceBrowser', () => {
 
     render(<InstanceBrowser pageName="TestPage" instances={instances} onInspect={mockOnInspect} />);
     
-    const clickableItem = screen.getByTitle('クリックしてインスペクターを開く');
-    fireEvent.click(clickableItem);
+    const inspectButton = screen.getByText('Inspect');
+    fireEvent.click(inspectButton);
     
     expect(mockOnInspect).toHaveBeenCalledWith(instances[0]);
   });
@@ -121,11 +123,11 @@ describe('InstanceBrowser', () => {
     // Should not throw when onInspect is not provided
     render(<InstanceBrowser pageName="TestPage" instances={instances} />);
     
-    const clickableItem = screen.getByTitle('クリックしてインスペクターを開く');
-    fireEvent.click(clickableItem);
+    const inspectButton = screen.getByText('Inspect');
+    fireEvent.click(inspectButton);
     
     // Should not crash
-    expect(clickableItem).toBeInTheDocument();
+    expect(inspectButton).toBeInTheDocument();
   });
 
   it('should render message button for each instance', () => {

@@ -28,6 +28,8 @@ import { GroupMorph } from "./morphs/GroupMorph";
 import { DatabaseMorph } from "./DatabaseMorph";
 import { Halo } from "./Halo";
 import { Inspector } from "./Inspector";
+import { MessageWindow } from "./MessageWindow";
+import { WindowMessage } from "./WindowMessage";
 import { useObjaxStore } from "../stores/objaxStore";
 import { parseObjaxWithClasses } from "../engine/objaxEngine";
 import { presetUIClasses } from "../engine/presetClasses";
@@ -43,9 +45,11 @@ interface WindowState {
     | "playground"
     | "instance-browser"
     | "new-ui-instance"
-    | "inspector";
+    | "inspector"
+    | "message";
   position: { x: number; y: number };
-  instanceId?: string; // Inspector用のインスタンスID
+  instanceId?: string; // Inspector/Message用のインスタンスID
+  instanceName?: string; // Message用のインスタンス名
 }
 
 interface SortableCanvasObjectProps {
@@ -279,6 +283,64 @@ export function CanvasView({ pageName }: CanvasViewProps) {
         instanceId: selectedInstance.id,
       };
       setWindows((prev) => [...prev, newWindow]);
+    }
+  };
+
+  const handleHaloMessage = () => {
+    if (selectedInstance) {
+      // Open message window
+      const newWindow: WindowState = {
+        id: `message-${selectedInstance.id}-${Date.now()}`,
+        type: "message",
+        position: {
+          x: (haloTargetRect?.x || 200) + 100,
+          y: (haloTargetRect?.y || 200) + 50,
+        },
+        instanceId: selectedInstance.id,
+        instanceName: selectedInstance.name,
+      };
+      setWindows((prev) => [...prev, newWindow]);
+      setSelectedInstance(null);
+      setHaloTargetRect(null);
+    }
+  };
+
+  const handleSendMessage = (instanceName: string, code: string) => {
+    try {
+      // Build the message execution code
+      const messageCode = `message to ${instanceName} "${code.replace(/"/g, '\\"')}"`;
+      
+      // Execute the message
+      const pageInstances = instances.filter(inst => inst.page === pageName);
+      const allClasses = [...presetUIClasses, ...classes];
+      const result = parseObjaxWithClasses(messageCode, allClasses, pageInstances);
+      
+      // Apply any changes from the execution result
+      if (result.instances && result.instances.length > 0) {
+        result.instances.forEach((resultInstance) => {
+          const existingInstance = pageInstances.find(pi => pi.name === resultInstance.name);
+          
+          if (existingInstance) {
+            updateInstance(existingInstance.id, {
+              ...resultInstance.properties,
+              className: resultInstance.className,
+              name: resultInstance.name
+            });
+          }
+        });
+      }
+      
+      // Handle page navigation if any
+      if (result.pageNavigations && result.pageNavigations.length > 0) {
+        const lastNavigation = result.pageNavigations[result.pageNavigations.length - 1];
+        setCurrentPageWithHistory(lastNavigation.pageName);
+      }
+      
+      if (result.errors && result.errors.length > 0) {
+        console.error('Message execution errors:', result.errors);
+      }
+    } catch (error) {
+      console.error('Failed to send message:', error);
     }
   };
 
@@ -745,11 +807,11 @@ export function CanvasView({ pageName }: CanvasViewProps) {
         {windows.map((window) => (
           <DraggableWindow
             key={window.id}
-            title={getWindowTitle(window.type, window.instanceId)}
+            title={getWindowTitle(window.type, window.instanceId, window.instanceName)}
             onClose={() => closeWindow(window.id)}
             initialPosition={window.position}
           >
-            {renderWindowContent(window.type, window.instanceId)}
+            {renderWindowContent(window.type, window.instanceId, window.instanceName)}
           </DraggableWindow>
         ))}
 
@@ -760,7 +822,7 @@ export function CanvasView({ pageName }: CanvasViewProps) {
             onDelete={handleHaloDelete}
             onClose={handleHaloClose}
             onInspect={handleHaloInspect}
-            onMessage={() => {}} // TODO: Implement message functionality
+            onMessage={handleHaloMessage}
             onResizeStart={handleHaloResizeStart}
           />
         )}
@@ -771,7 +833,8 @@ export function CanvasView({ pageName }: CanvasViewProps) {
 
   function getWindowTitle(
     type: WindowState["type"],
-    instanceId?: string
+    instanceId?: string,
+    instanceName?: string
   ): string {
     switch (type) {
       case "class-browser":
@@ -788,12 +851,15 @@ export function CanvasView({ pageName }: CanvasViewProps) {
           : null;
         return `インスペクター - ${instance?.name || "不明"}`;
       }
+      case "message":
+        return `メッセージ - ${instanceName || "不明"}`;
     }
   }
 
   function renderWindowContent(
     type: WindowState["type"],
-    instanceId?: string
+    instanceId?: string,
+    instanceName?: string
   ): React.ReactNode {
     switch (type) {
       case "class-browser":
@@ -814,6 +880,20 @@ export function CanvasView({ pageName }: CanvasViewProps) {
                 y: 200,
               },
               instanceId: instance.id,
+            };
+            setWindows((prev) => [...prev, newWindow]);
+          }}
+          onMessage={(instance) => {
+            // Open message window
+            const newWindow: WindowState = {
+              id: `message-${instance.id}-${Date.now()}`,
+              type: "message",
+              position: {
+                x: 400,
+                y: 200,
+              },
+              instanceId: instance.id,
+              instanceName: instance.name,
             };
             setWindows((prev) => [...prev, newWindow]);
           }}
@@ -841,6 +921,16 @@ export function CanvasView({ pageName }: CanvasViewProps) {
                 closeWindow(inspectorWindow.id);
               }
             }}
+          />
+        );
+      }
+      case "message": {
+        if (!instanceName) return <div>インスタンス名が見つかりません</div>;
+        
+        return (
+          <WindowMessage
+            targetInstance={instanceName}
+            onSend={(code) => handleSendMessage(instanceName, code)}
           />
         );
       }

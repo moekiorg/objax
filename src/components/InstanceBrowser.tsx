@@ -48,15 +48,29 @@ export function InstanceBrowser({ pageName, instances, onInspect, onMessage }: I
               <div 
                 key={instance.id} 
                 className="instance-browser-item"
-                onClick={() => handleInspect(instance)}
-                style={{ cursor: 'pointer' }}
-                title="クリックしてインスペクターを開く"
+                style={{ cursor: 'default' }}
               >
                 <div className="instance-browser-item-header">
                   <div className="instance-browser-item-name">{instance.name}</div>
                   <div className="instance-browser-item-type">{instance.className}</div>
                 </div>
-                <div className="instance-browser-item-actions">
+                <div className="instance-browser-item-actions" style={{ display: 'flex', gap: '4px' }}>
+                  <button
+                    onClick={() => handleInspect(instance)}
+                    className="instance-browser-inspect-btn"
+                    style={{
+                      fontSize: '12px',
+                      padding: '2px 6px',
+                      backgroundColor: '#4CAF50',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '3px',
+                      cursor: 'pointer'
+                    }}
+                    title="インスペクターを開く"
+                  >
+                    Inspect
+                  </button>
                   <button
                     onClick={(e) => handleMessage(instance, e)}
                     className="instance-browser-message-btn"
