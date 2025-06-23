@@ -19,6 +19,10 @@ export class ObjaxExecutor {
     const combinedClasses = [...result.classes, ...allClasses]
     for (const instance of instances) {
       try {
+        // Generate ID if not present
+        if (!instance.properties.id) {
+          instance.properties.id = `${instance.name}_${Date.now()}_${Math.floor(Math.random() * 1000)}`
+        }
         this.applyDefaultValues(instance, combinedClasses)
       } catch (error) {
         errors.push(`Error applying default values to instance "${instance.name}": ${error instanceof Error ? error.message : String(error)}`)
@@ -73,6 +77,15 @@ export class ObjaxExecutor {
       }
     }
 
+    // Execute field assignments BEFORE method calls (so field values are available)
+    for (const fieldAssignment of result.fieldAssignments || []) {
+      try {
+        this.executeFieldAssignment(fieldAssignment, instances)
+      } catch (error) {
+        errors.push(`Error executing field assignment: ${error instanceof Error ? error.message : String(error)}`)
+      }
+    }
+
     // Execute method calls
     for (const methodCall of result.methodCalls) {
       try {
@@ -117,16 +130,6 @@ export class ObjaxExecutor {
         errors.push(`Error executing message: ${error instanceof Error ? error.message : String(error)}`)
       }
     }
-
-    // Execute field assignments
-    for (const fieldAssignment of result.fieldAssignments || []) {
-      try {
-        this.executeFieldAssignment(fieldAssignment, instances)
-      } catch (error) {
-        errors.push(`Error executing field assignment: ${error instanceof Error ? error.message : String(error)}`)
-      }
-    }
-
 
     // Execute block calls
     for (const blockCall of result.blockCalls || []) {
@@ -270,6 +273,22 @@ export class ObjaxExecutor {
       return
     }
 
+    // Handle List class special methods
+    if (instance.className === 'List') {
+      if (methodCall.methodName === 'push' && methodCall.parameters && methodCall.parameters.length > 0) {
+        // Add item to the list
+        if (!Array.isArray(instance.properties.items)) {
+          instance.properties.items = [];
+        }
+        instance.properties.items.push(methodCall.parameters[0]);
+        return;
+      }
+      if (methodCall.methodName === 'size') {
+        // Return the size of the list
+        return Array.isArray(instance.properties.items) ? instance.properties.items.length : 0;
+      }
+    }
+
     // Handle State class special methods
     if (instance.className === 'State') {
       if (methodCall.methodName === 'set' && methodCall.parameters && methodCall.parameters.length > 0) {
@@ -368,7 +387,15 @@ export class ObjaxExecutor {
       if (!targetInstance) {
         throw new Error(`Instance "${param.instanceName}" not found for field reference`)
       }
-      return targetInstance.properties[param.fieldName]
+      const fieldValue = targetInstance.properties[param.fieldName]
+      
+      // If the field value is an array with a single element, return the element
+      // This handles the case where field assignments create single-element arrays
+      if (Array.isArray(fieldValue) && fieldValue.length === 1) {
+        return fieldValue[0]
+      }
+      
+      return fieldValue
     }
     return param
   }
@@ -387,6 +414,221 @@ export class ObjaxExecutor {
       throw new Error(`Method body is empty`)
     }
 
+    // First, process variable expansion {variable} before executing
+    let processedBody = this.expandVariables(body, instance, keywordParameters, instances, positionalParameters);
+    
+    // Split by dots, but preserve instance.field patterns
+    const statements = this.smartSplitStatements(processedBody);
+    
+    // Generate unique names for instances created in method execution
+    let createdInstanceName = '';
+    let originalInstanceName = '';
+    
+    for (const statement of statements) {
+      // If this is an instance creation statement, generate unique name
+      if (statement.includes(' is a ') && statement.includes(' with ')) {
+        const instanceCreationMatch = statement.match(/(\w+)\s+is\s+a\s+(\w+)/);
+        if (instanceCreationMatch) {
+          originalInstanceName = instanceCreationMatch[1];
+          createdInstanceName = `${originalInstanceName}_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+          
+          // Replace the instance name in this statement
+          const modifiedStatement = statement.replace(new RegExp(`\\b${originalInstanceName}\\b`, 'g'), createdInstanceName);
+          this.executeStatement(modifiedStatement, instance, keywordParameters, instances, positionalParameters);
+        } else {
+          this.executeStatement(statement, instance, keywordParameters, instances, positionalParameters);
+        }
+      } else if (statement.includes(' push ') && originalInstanceName && createdInstanceName) {
+        // Replace the original instance name with the created unique name in push statements
+        const modifiedStatement = statement.replace(new RegExp(`\\b${originalInstanceName}\\b`, 'g'), createdInstanceName);
+        this.executeStatement(modifiedStatement, instance, keywordParameters, instances, positionalParameters);
+      } else {
+        this.executeStatement(statement, instance, keywordParameters, instances, positionalParameters);
+      }
+    }
+  }
+
+  private expandVariables(body: string, instance: ObjaxInstanceDefinition, keywordParameters?: Record<string, any>, instances?: ObjaxInstanceDefinition[], positionalParameters?: any[]): string {
+    let expanded = body;
+    
+    // Replace {self} with instance name
+    expanded = expanded.replace(/\{self\}/g, instance.name);
+    
+    // Replace {parameter} with first positional parameter if available
+    if (positionalParameters && positionalParameters.length > 0) {
+      expanded = expanded.replace(/\{parameter\}/g, String(positionalParameters[0]));
+    }
+    
+    // Replace {title} and other variable patterns with parameter values
+    if (keywordParameters) {
+      for (const [key, value] of Object.entries(keywordParameters)) {
+        const pattern = new RegExp(`\\{${key}\\}`, 'g');
+        // Resolve field references before converting to string
+        const resolvedValue = this.resolveParameterValue(value, instances || []);
+        // Quote string values to preserve token boundaries
+        const stringValue = String(resolvedValue);
+        const quotedValue = `'${stringValue}'`;
+        expanded = expanded.replace(pattern, quotedValue);
+      }
+    }
+    
+    return expanded;
+  }
+
+  private smartSplitStatements(body: string): string[] {
+    // Split by dots, but be smart about instance.field patterns
+    const statements: string[] = [];
+    let currentStatement = '';
+    let i = 0;
+    
+    while (i < body.length) {
+      const char = body[i];
+      
+      if (char === '.') {
+        // Look ahead to see if this is instance.field or statement separator
+        const nextPart = body.substring(i + 1).trim();
+        
+        // If next part starts with identifier (like "items push"), it's instance.field
+        if (/^[a-zA-Z_][a-zA-Z0-9_]*\s+\w+/.test(nextPart)) {
+          currentStatement += char; // Keep the dot
+        } else {
+          // This is a statement separator
+          if (currentStatement.trim()) {
+            statements.push(currentStatement.trim());
+          }
+          currentStatement = '';
+        }
+      } else {
+        currentStatement += char;
+      }
+      
+      i++;
+    }
+    
+    // Add the last statement
+    if (currentStatement.trim()) {
+      statements.push(currentStatement.trim());
+    }
+    
+    return statements;
+  }
+
+  private executeStatement(statement: string, instance: ObjaxInstanceDefinition, keywordParameters?: Record<string, any>, instances?: ObjaxInstanceDefinition[], positionalParameters?: any[]) {
+    // For complex statements like instance creation, use the parser
+    if (statement.includes(' is a ') && statement.includes(' with ')) {
+      const parser = new LinearObjaxParser();
+      const result = parser.parse(statement, instances);
+      
+      // Add the newly created instances to our instance list
+      for (const newInstance of result.instances) {
+        instances?.push(newInstance);
+      }
+      return;
+    }
+    // Handle push operation: instance.field push item or instance.field.push item
+    const pushMatch = statement.match(/(\w+)\.(\w+)(?:\.push|\s+push)\s+(\w+)/);
+    if (pushMatch) {
+      const instanceName = pushMatch[1];
+      const fieldName = pushMatch[2];
+      const itemName = pushMatch[3];
+      
+      const item = instances?.find(i => i.name === itemName);
+      const targetInstance = instances?.find(i => i.name === instanceName);
+        
+      if (targetInstance && item) {
+        // Auto-create array if field doesn't exist or is not an array
+        if (!targetInstance.properties[fieldName] || !Array.isArray(targetInstance.properties[fieldName])) {
+          targetInstance.properties[fieldName] = [];
+        }
+        targetInstance.properties[fieldName].push(item);
+      }
+      return;
+    }
+
+    // Handle direct List push (fallback)
+    const directListPushMatch = statement.match(/(\w+)\.push\s+(\w+)/);
+    if (directListPushMatch) {
+      const listInstanceName = directListPushMatch[1];
+      const itemName = directListPushMatch[2];
+      
+      const item = instances?.find(i => i.name === itemName);
+      const listInstance = instances?.find(i => i.name === listInstanceName);
+        
+      if (listInstance && item && listInstance.className === 'List') {
+        if (!Array.isArray(listInstance.properties.items)) {
+          listInstance.properties.items = [];
+        }
+        listInstance.properties.items.push(item);
+      }
+      return;
+    }
+
+    // Handle instance creation: newTask is a Task with title {title}
+    const instanceCreationMatch = statement.match(/(\w+) is a (\w+)(?: with (.+))?/);
+    if (instanceCreationMatch) {
+      const newInstanceName = instanceCreationMatch[1];
+      const className = instanceCreationMatch[2];
+      const withClause = instanceCreationMatch[3];
+      
+      // Parse the "with" clause if present
+      const properties: Record<string, any> = {};
+      if (withClause) {
+        // The with clause is already processed and should be "title Learn Objax"
+        // First word is field name, rest is value
+        const parts = withClause.trim().split(/\s+/);
+        if (parts.length >= 2) {
+          const fieldName = parts[0];
+          const fieldValue = parts.slice(1).join(' ');
+          properties[fieldName] = fieldValue;
+        }
+      }
+      
+      // Create new instance
+      const newInstance: ObjaxInstanceDefinition = {
+        name: newInstanceName,
+        className: className,
+        properties: properties,
+        page: instance.page,
+        isOpen: false
+      };
+      
+      if (instances) {
+        instances.push(newInstance);
+      }
+      return;
+    }
+
+    // Handle self field assignments: self.fieldName is value
+    const selfFieldMatch = statement.match(/self\.(\w+) is (.+)/);
+    if (selfFieldMatch) {
+      const fieldName = selfFieldMatch[1];
+      const value = this.parseValue(selfFieldMatch[2]);
+      instance.properties[fieldName] = value;
+      return;
+    }
+
+    // Fall back to original parsing if no specific pattern matches
+    this.executeOriginalStatement(statement, instance, keywordParameters, instances, positionalParameters);
+  }
+
+  private parseValue(valueStr: string): any {
+    // Handle simple values
+    if (valueStr === 'true') return true;
+    if (valueStr === 'false') return false;
+    if (valueStr === 'null') return null;
+    if (valueStr.startsWith('"') && valueStr.endsWith('"')) {
+      return valueStr.slice(1, -1); // Remove quotes
+    }
+    if (/^\d+$/.test(valueStr)) {
+      return parseInt(valueStr);
+    }
+    if (/^\d+\.\d+$/.test(valueStr)) {
+      return parseFloat(valueStr);
+    }
+    return valueStr; // Return as string if no specific type
+  }
+
+  private executeOriginalStatement(body: string, instance: ObjaxInstanceDefinition, keywordParameters?: Record<string, any>, instances?: ObjaxInstanceDefinition[], positionalParameters?: any[]) {
     // Handle different method body patterns
     
     // Pattern 1: Multiple self field assignments separated by "and"
@@ -594,10 +836,16 @@ export class ObjaxExecutor {
     }
 
     if (morphOp.operation === 'add') {
-      // Add child to parent's children array
+      // Add child instance to parent's children array
       const currentChildren = parentInstance.properties.children || []
-      if (!currentChildren.includes(childInstance.properties.id)) {
-        parentInstance.properties.children = [...currentChildren, childInstance.properties.id]
+      
+      // Check if child is already in the array (compare by name to avoid duplicates)
+      const alreadyAdded = currentChildren.some((child: any) => 
+        child && typeof child === 'object' && child.name === childInstance.name
+      )
+      
+      if (!alreadyAdded) {
+        parentInstance.properties.children = [...currentChildren, childInstance]
       }
       
       // Set parent reference on child

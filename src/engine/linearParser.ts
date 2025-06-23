@@ -240,17 +240,13 @@ export class LinearObjaxParser {
     else if (this.isConditionalOtherwiseExecution(tokens)) {
       this.handleConditionalOtherwiseExecution(tokens);
     }
+    // Add child to parent: "parentInstance add childInstance" or legacy "parentInstance include with child childInstance"
+    else if (this.isAddOperation(tokens)) {
+      this.handleAddOperation(tokens);
+    }
     // Messaging syntax: "instanceName methodName [params...]"
     else if (this.isMessagingCall(tokens)) {
       this.handleMessagingCall(tokens);
-    }
-    // List operations: "add item to field of instance"
-    else if (this.isListOperation(tokens)) {
-      this.handleListOperation(tokens);
-    }
-    // Include with child: "parentInstance include with child childInstance"
-    else if (this.isIncludeOperation(tokens)) {
-      this.handleIncludeOperation(tokens);
     }
     // Print statement: "print message"
     else if (this.isPrintStatement(tokens)) {
@@ -299,29 +295,32 @@ export class LinearObjaxParser {
       processedLine = processedLine.replace(actionContent, placeholder);
     }
 
-    // Second, extract code blocks {...}
-    const codeBlockRegex = /{[^}]*}/g;
-    const codeBlocks: string[] = [];
+    // Extract single quote strings '...'
+    const singleQuoteRegex = /'[^']*'/g;
+    const singleQuoteStrings: string[] = [];
 
-    let codeMatch;
-    while ((codeMatch = codeBlockRegex.exec(processedLine)) !== null) {
-      const codeContent = codeMatch[0];
-      const placeholder = `__CODEBLOCK_${codeBlocks.length}__`;
-      codeBlocks.push(codeContent);
-      processedLine = processedLine.replace(codeContent, placeholder);
+    let singleQuoteMatch;
+    while ((singleQuoteMatch = singleQuoteRegex.exec(processedLine)) !== null) {
+      const stringContent = singleQuoteMatch[0];
+      const placeholder = `__SINGLEQUOTE_${singleQuoteStrings.length}__`;
+      singleQuoteStrings.push(stringContent);
+      processedLine = processedLine.replace(stringContent, placeholder);
     }
 
-    // Third, extract square bracket arrays [...]
-    const squareArrayRegex = /\[[^\]]*\]/g;
+    // Extract double quote code blocks "..."
+    const doubleQuoteRegex = /"[^"]*"/g;
+    const doubleQuoteBlocks: string[] = [];
+
+    let doubleQuoteMatch;
+    while ((doubleQuoteMatch = doubleQuoteRegex.exec(processedLine)) !== null) {
+      const blockContent = doubleQuoteMatch[0];
+      const placeholder = `__DOUBLEQUOTE_${doubleQuoteBlocks.length}__`;
+      doubleQuoteBlocks.push(blockContent);
+      processedLine = processedLine.replace(blockContent, placeholder);
+    }
+
+    // Array syntax removed - using List instances instead
     const squareArrays: string[] = [];
-
-    let squareMatch;
-    while ((squareMatch = squareArrayRegex.exec(processedLine)) !== null) {
-      const arrayContent = squareMatch[0];
-      const placeholder = `__SQUAREARRAY_${squareArrays.length}__`;
-      squareArrays.push(arrayContent);
-      processedLine = processedLine.replace(arrayContent, placeholder);
-    }
 
     // Fourth, extract block syntax (...)
     const blockRegex = /\([^)]*\)/g;
@@ -350,20 +349,20 @@ export class LinearObjaxParser {
         value = actionBlocks[actionIndex];
       }
 
-      // Replace code block placeholders back with actual content
-      if (value.startsWith('__CODEBLOCK_') && value.endsWith('__')) {
-        const codeIndex = parseInt(
-          value.replace('__CODEBLOCK_', '').replace('__', ''),
+      // Replace single quote placeholders back with actual strings
+      if (value.startsWith('__SINGLEQUOTE_') && value.endsWith('__')) {
+        const stringIndex = parseInt(
+          value.replace('__SINGLEQUOTE_', '').replace('__', ''),
         );
-        value = codeBlocks[codeIndex];
+        value = singleQuoteStrings[stringIndex];
       }
 
-      // Replace square array placeholders back with actual array content
-      if (value.startsWith('__SQUAREARRAY_') && value.endsWith('__')) {
-        const arrayIndex = parseInt(
-          value.replace('__SQUAREARRAY_', '').replace('__', ''),
+      // Replace double quote placeholders back with actual code blocks
+      if (value.startsWith('__DOUBLEQUOTE_') && value.endsWith('__')) {
+        const blockIndex = parseInt(
+          value.replace('__DOUBLEQUOTE_', '').replace('__', ''),
         );
-        value = squareArrays[arrayIndex];
+        value = doubleQuoteBlocks[blockIndex];
       }
 
       // Replace block placeholders back with actual block content
@@ -418,11 +417,12 @@ export class LinearObjaxParser {
     if (value === 'defineMethod') return 'DEFINEMETHOD';
     if (value === 'true') return 'TRUE';
     if (value === 'false') return 'FALSE';
-    if (value.startsWith('"') && value.endsWith('"')) return 'STRING';
-    if (value.startsWith('[') && value.endsWith(']')) return 'ARRAY';
+    if (value.startsWith("'") && value.endsWith("'")) return 'STRING';
+    if (value.startsWith('"') && value.endsWith('"')) return 'CODEBLOCK';
+    // Removed ARRAY support - using List instances instead
     if (value.startsWith('<') && value.endsWith('>')) return 'ACTIONBLOCK';
     if (value.startsWith('(') && value.endsWith(')')) return 'BLOCK';
-    if (value.startsWith('{') && value.endsWith('}')) return 'CODEBLOCK';
+    // Removed CODEBLOCK support - using strings instead
     if (/^\d+(\.\d+)?$/.test(value)) return 'NUMBER';
     return 'IDENTIFIER';
   }
@@ -643,10 +643,40 @@ export class LinearObjaxParser {
   private handleDefineMethodSyntax(tokens: Token[]) {
     if (!this.currentClass) return;
 
-    // "ClassName defineMethod "methodName" [with "param1" [with "param2"...]] do {code}"
+    // Check for new syntax: "ClassName defineMethod with name "methodName" and do "code""
+    const withIndex = tokens.findIndex(t => t.value === 'with');
+    const nameIndex = tokens.findIndex(t => t.value === 'name');
+    const andIndex = tokens.findIndex(t => t.value === 'and');
+    const doIndex = tokens.findIndex((t) => t.value === 'do');
+
+    if (withIndex !== -1 && nameIndex === withIndex + 1 && andIndex !== -1 && doIndex === andIndex + 1) {
+      // New syntax: "ClassName defineMethod with name "methodName" and do "code""
+      const methodNameToken = tokens[nameIndex + 1];
+      if (!methodNameToken || methodNameToken.type !== 'STRING') {
+        throw new Error('Invalid defineMethod syntax: method name must be a string');
+      }
+      const methodName = this.extractStringValue(methodNameToken);
+
+      // Extract body from code block (double quotes)
+      const bodyToken = tokens[doIndex + 1];
+      if (!bodyToken || bodyToken.type !== 'CODEBLOCK') {
+        throw new Error('Method body must be a code block (double quotes)');
+      }
+      const body = this.extractCodeBlockValue(bodyToken);
+
+      const method: ObjaxMethodDefinition = {
+        name: methodName,
+        parameters: [], // No parameters in this syntax for now
+        body,
+      };
+
+      this.currentClass.methods.push(method);
+      return;
+    }
+
+    // Original syntax: "ClassName defineMethod "methodName" [with "param1" [with "param2"...]] do {code}"
     const methodName = this.extractStringValue(tokens[2]);
 
-    const doIndex = tokens.findIndex((t) => t.value === 'do');
     if (doIndex === -1) {
       throw new Error('Method definition missing "do" keyword');
     }
@@ -664,14 +694,14 @@ export class LinearObjaxParser {
       }
     }
 
-    // The body should be a code block {}
+    // The body should be a code block (double quotes)
     const bodyToken = tokens[doIndex + 1];
     if (!bodyToken || bodyToken.type !== 'CODEBLOCK') {
-      throw new Error('Method body must be a code block enclosed in {}');
+      throw new Error('Method body must be a code block (double quotes)');
     }
 
-    // Extract body content (remove braces)
-    const body = bodyToken.value.slice(1, -1).trim();
+    // Extract body content (remove double quotes)
+    const body = this.extractCodeBlockValue(bodyToken);
 
     const method: ObjaxMethodDefinition = {
       name: methodName,
@@ -829,19 +859,42 @@ export class LinearObjaxParser {
     if (token.type !== 'STRING') {
       throw new Error(`Expected string, got ${token.value}`);
     }
-    return token.value.slice(1, -1); // Remove quotes
+    return token.value.slice(1, -1); // Remove single quotes
+  }
+
+  private extractCodeBlockValue(token: Token): string {
+    if (token.type !== 'CODEBLOCK') {
+      throw new Error(`Expected code block, got ${token.value}`);
+    }
+    return token.value.slice(1, -1); // Remove double quotes
   }
 
   private parseValue(token: Token): any {
     switch (token.type) {
       case 'STRING':
-        return token.value.slice(1, -1);
+        return token.value.slice(1, -1); // Single quotes for strings
+      case 'CODEBLOCK':
+        return token.value.slice(1, -1); // Double quotes for code blocks
       case 'TRUE':
         return true;
       case 'FALSE':
         return false;
       case 'NUMBER':
         return parseFloat(token.value);
+      case 'IDENTIFIER':
+        // Check if this is a field reference (instanceName.fieldName)
+        if (token.value.includes('.')) {
+          const dotIndex = token.value.indexOf('.');
+          const instanceName = token.value.substring(0, dotIndex);
+          const fieldName = token.value.substring(dotIndex + 1);
+          return {
+            type: 'field_reference',
+            instanceName,
+            fieldName
+          };
+        }
+        // For default values, return a reference object that can be resolved later
+        return { type: 'instance_reference', name: token.value };
       default:
         return token.value;
     }
@@ -952,54 +1005,35 @@ export class LinearObjaxParser {
     this.methodCalls.push(methodCall);
   }
 
-  private isListOperation(tokens: Token[]): boolean {
-    // "add item to field of instance"
+
+  private isAddOperation(tokens: Token[]): boolean {
+    // "parentInstance add childInstance" or "parentInstance include with child childInstance" (legacy)
     return (
-      tokens.length >= 6 &&
-      tokens[0].value === 'add' &&
-      tokens[2].value === 'to' &&
-      tokens[4].value === 'of'
+      (tokens.length >= 3 &&
+        tokens[1].value === 'add') ||
+      (tokens.length >= 5 &&
+        tokens[1].value === 'include' &&
+        tokens[2].value === 'with' &&
+        tokens[3].value === 'child')
     );
   }
 
-  private handleListOperation(tokens: Token[]) {
-    // "add item to field of instance"
-    if (tokens.length < 6) {
-      throw new Error('Invalid list operation syntax');
+  private handleAddOperation(tokens: Token[]) {
+    // "parentInstance add childInstance" or "parentInstance include with child childInstance" (legacy)
+    let parentInstance: string;
+    let childInstance: string;
+
+    if (tokens.length >= 3 && tokens[1].value === 'add') {
+      // New syntax: "parentInstance add childInstance"
+      parentInstance = tokens[0].value;
+      childInstance = tokens[2].value;
+    } else if (tokens.length >= 5 && tokens[1].value === 'include') {
+      // Legacy syntax: "parentInstance include with child childInstance"
+      parentInstance = tokens[0].value;
+      childInstance = tokens[4].value;
+    } else {
+      throw new Error('Invalid morph add operation syntax');
     }
-
-    const item = this.parseValue(tokens[1]);
-    const listField = this.extractStringValue(tokens[3]);
-    const targetInstance = tokens[5].value;
-
-    const listOp: ObjaxListOperation = {
-      operation: 'add',
-      item,
-      listField,
-      targetInstance,
-    };
-
-    this.listOperations.push(listOp);
-  }
-
-  private isIncludeOperation(tokens: Token[]): boolean {
-    // "parentInstance include with child childInstance"
-    return (
-      tokens.length >= 5 &&
-      tokens[1].value === 'include' &&
-      tokens[2].value === 'with' &&
-      tokens[3].value === 'child'
-    );
-  }
-
-  private handleIncludeOperation(tokens: Token[]) {
-    // "parentInstance include with child childInstance"
-    if (tokens.length < 5) {
-      throw new Error('Invalid include operation syntax');
-    }
-
-    const parentInstance = tokens[0].value;
-    const childInstance = tokens[4].value;
 
     const morphOp: ObjaxMorphOperation = {
       operation: 'add',
@@ -1129,27 +1163,8 @@ export class LinearObjaxParser {
     const valueToken = tokens[2];
     let values: any[];
 
-    if (valueToken.type === 'ARRAY') {
-      // Parse square bracket array [value1, value2, ...]
-      const arrayContent = valueToken.value.slice(1, -1); // Remove [ and ]
-      if (arrayContent.trim() === '') {
-        values = [];
-      } else {
-        // Split by comma and parse each value
-        const items = arrayContent
-          .split(',')
-          .map((item) => item.trim())
-          .filter(Boolean);
-        values = items.map((item) => {
-          // Create a temporary token to parse the value
-          const tempToken: Token = {
-            type: this.getTokenType(item),
-            value: item,
-          };
-          return this.parseValue(tempToken);
-        });
-      }
-    } else {
+    // Array syntax removed - use List instances instead
+    {
       // Single value
       values = [this.parseValue(valueToken)];
     }
@@ -1392,8 +1407,7 @@ export class LinearObjaxParser {
       tokens.length >= 3 &&
       tokens[1].value === 'is' &&
       (tokens[2].type === 'ACTIONBLOCK' ||
-        tokens[2].type === 'BLOCK' ||
-        tokens[2].type === 'CODEBLOCK')
+        tokens[2].type === 'BLOCK')
     );
   }
 

@@ -82,6 +82,17 @@ export const presetUIClasses: ObjaxClass[] = [
     methods: []
   },
   {
+    name: 'List',
+    code: 'List is a Class\nList has field "items"\nList has method "push" with "item" do self.items is self.items + [item]\nList has method "size" do return size of self.items',
+    fields: [
+      { name: 'items', default: [] }
+    ],
+    methods: [
+      { name: 'push', code: 'self.items is self.items + [item]' },
+      { name: 'size', code: 'return size of self.items' }
+    ]
+  },
+  {
     name: 'State',
     code: 'State is a Class\nState has field "name"\nState has field "value"\nState has method "set" do self.value is parameter\nState has method "get" do return field "value" of myself',
     fields: [
