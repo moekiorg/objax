@@ -7,7 +7,7 @@ interface MessageWindowProps {
 }
 
 export const MessageWindow: React.FC<MessageWindowProps> = ({
-  targetInstance,
+  // targetInstance,
   onClose,
   onSend,
 }) => {

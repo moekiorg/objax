@@ -68,6 +68,22 @@ export interface ObjaxInstance {
   action?: string; // Timer action code
   isRunning?: boolean; // Timer running state
   intervalId?: number; // Internal interval ID for cleanup
+  // BoxMorph properties
+  backgroundColor?: string;
+  borderColor?: string;
+  borderWidth?: string;
+  borderRadius?: string;
+  margin?: string;
+  textColor?: string;
+  fontSize?: string;
+  fontWeight?: string;
+  textAlign?: string;
+  display?: string;
+  position?: string;
+  opacity?: string;
+  boxShadow?: string;
+  // Additional properties
+  properties?: Record<string, any>;
 }
 
 export interface ObjaxProject {

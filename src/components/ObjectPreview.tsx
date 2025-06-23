@@ -131,8 +131,8 @@ export function ObjectPreview({ pageName }: ObjectPreviewProps) {
                       {instanceClass.fields.map((field) => (
                         <li key={field.name} className="object-preview-field-item">
                           <span className="object-preview-field-name">{field.name}</span>
-                          {field.defaultValue !== undefined && (
-                            <span className="object-preview-field-default"> = {String(field.defaultValue)}</span>
+                          {field.default !== undefined && (
+                            <span className="object-preview-field-default"> = {String(field.default)}</span>
                           )}
                         </li>
                       ))}

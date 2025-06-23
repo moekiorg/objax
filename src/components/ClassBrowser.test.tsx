@@ -7,8 +7,9 @@ describe('ClassBrowser', () => {
     const mockClasses = [
       {
         name: 'Task',
-        fields: [{ name: 'title', defaultValue: undefined }],
-        methods: [{ name: 'complete', parameters: [], body: 'set field "done" of myself to true' }]
+        code: 'Task is a Class',
+        fields: [{ name: 'title', default: undefined }],
+        methods: [{ name: 'complete', code: 'set field "done" of myself to true' }]
       }
     ];
     
@@ -27,8 +28,9 @@ describe('ClassBrowser', () => {
     const mockClasses = [
       {
         name: 'Task',
-        fields: [{ name: 'title', defaultValue: undefined }],
-        methods: [{ name: 'complete', parameters: [], body: 'set field "done" of myself to true' }]
+        code: 'Task is a Class',
+        fields: [{ name: 'title', default: undefined }],
+        methods: [{ name: 'complete', code: 'set field "done" of myself to true' }]
       }
     ];
     

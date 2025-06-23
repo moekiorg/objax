@@ -5,12 +5,14 @@ interface DatabaseMorphProps {
   instance: ObjaxInstance;
   dataInstances: ObjaxInstance[];
   onUpdate?: (id: string, updates: Partial<ObjaxInstance>) => void;
+  onInspect?: (instance: ObjaxInstance) => void;
 }
 
 export const DatabaseMorph: React.FC<DatabaseMorphProps> = ({
   instance,
   dataInstances,
   onUpdate,
+  onInspect,
 }) => {
   // Only search for data source in the same page as this DatabaseMorph
   const dataSource = dataInstances.find(
@@ -32,7 +34,7 @@ export const DatabaseMorph: React.FC<DatabaseMorphProps> = ({
           return { id: index, value: item, title: item };
         } else if (item && typeof item === "object") {
           // Handle Task-like objects with properties
-          if (item.properties && item.properties.title) {
+          if (item.properties?.title) {
             return {
               id: index,
               value: item.properties.title,

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 
 interface ClassMessageWindowProps {
   className: string;
@@ -40,6 +40,7 @@ export function ClassMessageWindow({
           />
           <div className="class-message-input-footer">
             <button
+              type="button"
               className="class-message-send-btn"
               onClick={handleSend}
               disabled={!message.trim()}
@@ -55,7 +56,7 @@ export function ClassMessageWindow({
           <div className="class-message-history-title">送信履歴:</div>
           <div className="class-message-history-list">
             {history.slice(-5).map((msg, index) => (
-              <div key={index} className="class-message-history-item">
+              <div key={`msg-${index}-${msg.slice(0,10)}`} className="class-message-history-item">
                 <code>{msg}</code>
               </div>
             ))}

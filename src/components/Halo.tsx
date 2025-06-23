@@ -119,6 +119,8 @@ export function Halo({
         <div
           key={handle.id}
           className={`halo-handle ${handle.className}`}
+          role="button"
+          tabIndex={0}
           style={{
             position: "absolute",
             left: handle.x,
@@ -141,6 +143,12 @@ export function Halo({
           title={handle.title}
           onClick={handle.onClick}
           onMouseDown={handle.onMouseDown}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              handle.onClick?.();
+            }
+          }}
         >
           {handle.label}
         </div>

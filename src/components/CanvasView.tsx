@@ -7,6 +7,7 @@ import {
   useSensor,
   useSensors,
   DragOverlay,
+  type DragEndEvent,
 } from "@dnd-kit/core";
 import {
   arrayMove,
@@ -478,8 +479,8 @@ export function CanvasView({ pageName }: CanvasViewProps) {
           const finalHeight = Math.max(50, initialHeight + deltaY);
 
           updateInstance(selectedInstance.id, {
-            width: finalWidth,
-            height: finalHeight,
+            width: `${finalWidth}px`,
+            height: `${finalHeight}px`,
           });
 
           // 視覚的なリセット
@@ -519,18 +520,15 @@ export function CanvasView({ pageName }: CanvasViewProps) {
     }
   };
 
-  const handleDragEnd = (event: {
-    active: { id: string };
-    over: { id: string } | null;
-  }) => {
+  const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
 
     if (over) {
       // Check if we're dropping on a GroupMorph
-      const overInstance = instances.find((i) => i.id === over.id);
+      const overInstance = instances.find((i) => i.id === String(over.id));
       if (overInstance && overInstance.className === "GroupMorph") {
         // Handle dropping on GroupMorph
-        const droppedInstance = instances.find((i) => i.id === active.id);
+        const droppedInstance = instances.find((i) => i.id === String(active.id));
         if (droppedInstance) {
           // Dropping on GroupMorph
 
@@ -541,29 +539,29 @@ export function CanvasView({ pageName }: CanvasViewProps) {
             );
             if (prevParent) {
               const updatedChildren = (prevParent.children || []).filter(
-                (id) => id !== active.id
+                (id) => id !== String(active.id)
               );
               updateInstance(prevParent.id, { children: updatedChildren });
             }
           }
 
           // Update the dropped instance to be a child of this group
-          updateInstance(active.id, {
-            parentId: over.id,
+          updateInstance(String(active.id), {
+            parentId: String(over.id),
             page: overInstance.page,
           });
 
           // Add the dropped instance to this group's children
           const currentChildren = overInstance.children || [];
-          if (!currentChildren.includes(active.id)) {
-            updateInstance(over.id, {
-              children: [...currentChildren, active.id],
+          if (!currentChildren.includes(String(active.id))) {
+            updateInstance(String(over.id), {
+              children: [...currentChildren, String(active.id)],
             });
           }
 
           // Updated group children successfully
         }
-      } else if (active.id !== over?.id) {
+      } else if (String(active.id) !== String(over?.id)) {
         // Handle normal reordering
         const pageInstances = instances
           .filter(
@@ -572,10 +570,10 @@ export function CanvasView({ pageName }: CanvasViewProps) {
           .sort((a, b) => (a.order || 0) - (b.order || 0));
 
         const oldIndex = pageInstances.findIndex(
-          (instance) => instance.id === active.id
+          (instance) => instance.id === String(active.id)
         );
         const newIndex = pageInstances.findIndex(
-          (instance) => instance.id === over?.id
+          (instance) => instance.id === String(over?.id)
         );
 
         const reorderedInstances = arrayMove(pageInstances, oldIndex, newIndex);
@@ -1152,7 +1150,7 @@ export function CanvasView({ pageName }: CanvasViewProps) {
             <ListMorph
               label={instance.label || instance.name}
               items={instance.items || []}
-              onItemClick={(item, index) => {
+              onItemClick={() => {
                 // Handle list item clicks
               }}
             />
@@ -1244,7 +1242,7 @@ export function CanvasView({ pageName }: CanvasViewProps) {
                     Items: {instance.items.length}
                   </p>
                   <ul className="text-xs">
-                    {instance.items.slice(0, 3).map((item, idx) => (
+                    {instance.items.slice(0, 3).map((item: any, idx: number) => (
                       <li key={idx}>
                         •{" "}
                         {typeof item === "object" ? JSON.stringify(item) : item}

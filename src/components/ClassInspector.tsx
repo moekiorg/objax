@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import type { ObjaxClass } from "../types";
 
 interface ClassInspectorProps {
@@ -28,6 +28,7 @@ export function ClassInspector({ className, classes }: ClassInspectorProps) {
     <div className="class-inspector">
       <div className="class-inspector-tabs">
         <button
+          type="button"
           className={`class-inspector-tab ${
             activeTab === "fields" ? "active" : ""
           }`}
@@ -36,6 +37,7 @@ export function ClassInspector({ className, classes }: ClassInspectorProps) {
           フィールド ({classData.fields.length})
         </button>
         <button
+          type="button"
           className={`class-inspector-tab ${
             activeTab === "methods" ? "active" : ""
           }`}
@@ -101,9 +103,9 @@ export function ClassInspector({ className, classes }: ClassInspectorProps) {
                         {method.name}()
                       </span>
                     </div>
-                    {method.body && (
+                    {method.code && (
                       <div className="class-inspector-method-body">
-                        <code>{method.body}</code>
+                        <code>{method.code}</code>
                       </div>
                     )}
                   </div>

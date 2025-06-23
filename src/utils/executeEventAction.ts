@@ -1,10 +1,10 @@
 import { convertToClassDefinition, convertToInstanceDefinition } from '../engine/objaxEngine';
-import type { UseObjaxStore } from '../stores/objaxStore';
+import { useObjaxStore } from '../stores/objaxStore';
 
 export function executeEventAction(
   action: string,
   instanceName: string,
-  store: UseObjaxStore
+  store: ReturnType<typeof useObjaxStore>
 ) {
   try {
     // Get the persistent engine instance from store
@@ -16,16 +16,19 @@ export function executeEventAction(
     
     console.log(`Initial instances for action: ${instanceDefinitions.length} instances`);
     
+    // Initialize actualAction
+    let actualAction = action;
+    
     // EMERGENCY: If we have too many instances, something is very wrong
     if (instanceDefinitions.length > 100) {
       console.error(`CRITICAL: Too many instances (${instanceDefinitions.length})! This indicates a serious data corruption issue.`);
-      console.error('Instance names:', instanceDefinitions.map(i => i.name));
+      console.error('Instance names:', instanceDefinitions.map((i) => i.name));
       
       // Emergency: Only process instances from the current page to avoid massive data corruption
-      const currentPageInstances = store.instances.filter(i => i.page === store.currentPage);
+      const currentPageInstances = store.instances.filter((i) => i.page === store.currentPage);
       console.log(`Filtering to current page (${store.currentPage}) instances only: ${currentPageInstances.length}`);
       
-      const filteredInstanceDefinitions = currentPageInstances.map(convertToInstanceDefinition);
+      const filteredInstanceDefinitions = currentPageInstances.map((i) => convertToInstanceDefinition(i));
       
       // Execute with filtered instances instead
       const result = engine.execute(actualAction, classDefinitions, filteredInstanceDefinitions);
@@ -38,7 +41,6 @@ export function executeEventAction(
     }
     
     // Check if this is a block reference
-    let actualAction = action;
     if (action.startsWith('@block:')) {
       const blockName = action.replace('@block:', '');
       const registeredBlocks = engine.getRegisteredBlocks();
@@ -66,22 +68,22 @@ export function executeEventAction(
     });
     
     // Check for changes by comparing specific instances that might have been affected
-    const changedInstances = [];
+    const changedInstances: Array<{name: string, changes: Record<string, any>}> = [];
     if (result.instances) {
-      instanceDefinitions.forEach(initial => {
-        const final = result.instances.find(r => r.name === initial.name);
+      instanceDefinitions.forEach((initial) => {
+        const final = result.instances.find((r) => r.name === initial.name);
         if (final) {
           // Compare each property to find actual changes
-          const changes = {};
+          const changes: Record<string, any> = {};
           let hasChanges = false;
           
-          Object.keys(final.properties).forEach(key => {
+          Object.keys(final.properties).forEach((key: string) => {
             const initialValue = initial.properties[key];
             const finalValue = final.properties[key];
             
             if (JSON.stringify(initialValue) !== JSON.stringify(finalValue)) {
               console.log(`Change detected in ${initial.name}.${key}: "${initialValue}" -> "${finalValue}"`);
-              changes[key] = finalValue;
+              changes[key as keyof typeof changes] = finalValue;
               hasChanges = true;
             }
           });
@@ -126,7 +128,7 @@ export function executeEventAction(
           console.log(`Manual becomes: ${instanceName}.${fieldName} = ${value}`);
           
           // Find the instance in the store and update it
-          const existing = store.instances.find(i => i.name === instanceName);
+          const existing = store.instances.find((i: any) => i.name === instanceName);
           if (existing) {
             console.log(`Updating ${instanceName}.${fieldName} from "${existing[fieldName]}" to "${value}"`);
             store.updateInstance(existing.id, { [fieldName]: value });
@@ -174,8 +176,8 @@ export function executeEventAction(
         
         // Force update instances that appear in conditional executions
         if (result.instances) {
-          result.instances.forEach(finalInstance => {
-            const storeInstance = store.instances.find(i => i.name === finalInstance.name);
+          result.instances.forEach((finalInstance: any) => {
+            const storeInstance = store.instances.find((i: any) => i.name === finalInstance.name);
             if (storeInstance) {
               // Force update the value property specifically
               if (finalInstance.properties.value !== undefined && 
@@ -193,13 +195,13 @@ export function executeEventAction(
     
     // Add any truly new instances
     if (result.instances) {
-      const newInstances = result.instances.filter(instance => {
-        return !store.instances.some(existing => existing.name === instance.name);
+      const newInstances = result.instances.filter((instance: any) => {
+        return !store.instances.some((existing: any) => existing.name === instance.name);
       });
       
       if (newInstances.length > 0) {
-        console.log(`Adding ${newInstances.length} new instances:`, newInstances.map(i => i.name));
-        newInstances.forEach(instance => {
+        console.log(`Adding ${newInstances.length} new instances:`, newInstances.map((i: any) => i.name));
+        newInstances.forEach((instance: any) => {
           store.addInstance({
             name: instance.name,
             className: instance.className,
@@ -212,7 +214,7 @@ export function executeEventAction(
     
     // Handle print statements
     if (result.printStatements && result.printStatements.length > 0) {
-      result.printStatements.forEach(stmt => {
+      result.printStatements.forEach((stmt: any) => {
         console.log(`[${instanceName}]`, stmt.message);
       });
     }
