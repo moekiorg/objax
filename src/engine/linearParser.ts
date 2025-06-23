@@ -617,10 +617,12 @@ export class LinearObjaxParser {
 
     // Extract field name
     const fieldNameToken = tokens[nameIndex + 1];
-    if (!fieldNameToken || fieldNameToken.type !== 'STRING') {
+    if (!fieldNameToken || (fieldNameToken.type !== 'STRING' && fieldNameToken.type !== 'CODEBLOCK')) {
       throw new Error('Invalid defineField syntax: field name must be a string');
     }
-    const fieldName = this.extractStringValue(fieldNameToken);
+    const fieldName = fieldNameToken.type === 'STRING' 
+      ? this.extractStringValue(fieldNameToken)
+      : this.extractCodeBlockValue(fieldNameToken);
 
     // Check for default value
     let defaultValue: any;
@@ -796,13 +798,54 @@ export class LinearObjaxParser {
       }
     }
 
+    // Find the class definition to get default field values
+    // Check both completed classes and current class being defined
+    let classDefinition = this.classes.find(cls => cls.name === className);
+    if (!classDefinition && this.currentClass && this.currentClass.name === className) {
+      classDefinition = this.currentClass;
+    }
+    
+    // Initialize properties with class field defaults
+    const initialProperties: Record<string, any> = {};
+    if (classDefinition) {
+      classDefinition.fields.forEach(field => {
+        if (field.defaultValue !== undefined) {
+          initialProperties[field.name] = field.defaultValue;
+        } else {
+          // Initialize field with appropriate default based on name/type
+          initialProperties[field.name] = this.getDefaultValueForField(field.name);
+        }
+      });
+    }
+    
+    // Merge class defaults with instance-specific properties
+    const finalProperties = { ...initialProperties, ...properties };
+
     const instance: ObjaxInstanceDefinition = {
       name: instanceName,
       className,
-      properties,
+      properties: finalProperties,
     };
 
     this.instances.push(instance);
+  }
+
+  private getDefaultValueForField(fieldName: string): any {
+    // Provide sensible defaults based on field name patterns
+    const lowerName = fieldName.toLowerCase();
+    
+    if (lowerName.includes('completed') || lowerName.includes('done') || lowerName.includes('active')) {
+      return false;
+    }
+    if (lowerName.includes('count') || lowerName.includes('number') || lowerName.includes('age')) {
+      return 0;
+    }
+    if (lowerName.includes('items') || lowerName.includes('list')) {
+      return [];
+    }
+    
+    // Default to empty string for most fields
+    return '';
   }
 
   private isInstanceConfiguration(tokens: Token[]): boolean {
@@ -1008,14 +1051,24 @@ export class LinearObjaxParser {
 
   private isAddOperation(tokens: Token[]): boolean {
     // "parentInstance add childInstance" or "parentInstance include with child childInstance" (legacy)
-    return (
-      (tokens.length >= 3 &&
-        tokens[1].value === 'add') ||
-      (tokens.length >= 5 &&
+    // BUT NOT "parentInstance add with ..." which is a method call with keyword parameters
+    if (tokens.length >= 5 &&
         tokens[1].value === 'include' &&
         tokens[2].value === 'with' &&
-        tokens[3].value === 'child')
-    );
+        tokens[3].value === 'child') {
+      return true; // Legacy include syntax
+    }
+    
+    if (tokens.length >= 3 && tokens[1].value === 'add') {
+      // Check if this is "parentInstance add childInstance" (morph operation)
+      // vs "parentInstance add with ..." (method call)
+      if (tokens.length >= 3 && tokens[2].value === 'with') {
+        return false; // This is a method call with keyword parameters
+      }
+      return true; // This is a morph add operation
+    }
+    
+    return false;
   }
 
   private handleAddOperation(tokens: Token[]) {
