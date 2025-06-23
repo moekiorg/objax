@@ -131,7 +131,16 @@ export function executeEventAction(
           const existing = store.instances.find((i: any) => i.name === instanceName);
           if (existing) {
             console.log(`Updating ${instanceName}.${fieldName} from "${existing[fieldName]}" to "${value}"`);
-            store.updateInstance(existing.id, { [fieldName]: value });
+            
+            // Special handling for DataMorph record fields
+            if (existing.className === 'DataMorph' && existing.record && fieldName in existing.record) {
+              const updatedRecord = { ...existing.record, [fieldName]: value };
+              store.updateInstance(existing.id, { record: updatedRecord });
+              console.log(`Updated DataMorph record field: ${instanceName}.record.${fieldName} = ${value}`);
+            } else {
+              // Regular field update
+              store.updateInstance(existing.id, { [fieldName]: value });
+            }
           } else {
             console.warn(`Instance "${instanceName}" not found for becomes assignment`);
           }
@@ -155,8 +164,8 @@ export function executeEventAction(
         
         // Only update instances that actually changed and have meaningful changes
         const significantChanges = changedInstances.filter(({changes}) => {
-          // Only apply changes to specific fields like 'value', not structural properties
-          return Object.keys(changes).some(key => ['value', 'items', 'label'].includes(key));
+          // Only apply changes to specific fields like 'value', 'record', not structural properties
+          return Object.keys(changes).some(key => ['value', 'items', 'label', 'record'].includes(key));
         });
         
         console.log(`Filtering to ${significantChanges.length} instances with significant changes`);
@@ -184,6 +193,13 @@ export function executeEventAction(
                   finalInstance.properties.value !== storeInstance.value) {
                 console.log(`Force updating ${finalInstance.name}.value: "${storeInstance.value}" -> "${finalInstance.properties.value}"`);
                 store.updateInstance(storeInstance.id, { value: finalInstance.properties.value });
+              }
+              
+              // Also update record property for DataMorph instances
+              if (finalInstance.properties.record !== undefined && 
+                  JSON.stringify(finalInstance.properties.record) !== JSON.stringify(storeInstance.record)) {
+                console.log(`Force updating ${finalInstance.name}.record:`, finalInstance.properties.record);
+                store.updateInstance(storeInstance.id, { record: finalInstance.properties.record });
               }
             }
           });
