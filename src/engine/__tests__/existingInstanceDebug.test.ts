@@ -5,8 +5,10 @@ import { presetUIClasses } from '../presetClasses';
 describe('Existing Instance Debug', () => {
   it('should debug existing instance becomes assignment', () => {
     const existingInstances = [{
+      id: 'myBox_1',
       name: 'myBox',
       className: 'BoxMorph',
+      page: 'test',
       properties: {
         width: 200,
         height: 100,

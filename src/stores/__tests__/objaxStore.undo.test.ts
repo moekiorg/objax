@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { useObjaxStore } from '../objaxStore';
-import { ObjaxInstance } from '../../types';
+import type { ObjaxInstance } from '../../types';
 
 describe('ObjaxStore - Undo Functionality', () => {
   beforeEach(() => {

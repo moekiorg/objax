@@ -72,8 +72,10 @@ describe('Becomes Assignment Integration', () => {
 
   it('should work with existing instances', () => {
     const existingInstances = [{
+      id: 'myBox_1',
       name: 'myBox',
       className: 'BoxMorph',
+      page: 'test',
       properties: {
         width: 200,
         height: 100,

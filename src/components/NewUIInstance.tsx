@@ -2,18 +2,21 @@ import type React from "react";
 
 interface UIClassItem {
   name: string;
+  icon: string;
   defaultProps: Record<string, any>;
 }
 
 const UI_CLASSES: UIClassItem[] = [
   {
     name: "ButtonMorph",
+    icon: "🔘",
     defaultProps: {
       label: "新しいボタン",
     },
   },
   {
     name: "FieldMorph",
+    icon: "📝",
     defaultProps: {
       label: "新しいフィールド",
       value: "",
@@ -22,6 +25,7 @@ const UI_CLASSES: UIClassItem[] = [
   },
   {
     name: "ListMorph",
+    icon: "📋",
     defaultProps: {
       label: "新しいリスト",
       items: ["アイテム1", "アイテム2"],
@@ -29,6 +33,7 @@ const UI_CLASSES: UIClassItem[] = [
   },
   {
     name: "GroupMorph",
+    icon: "📦",
     defaultProps: {
       label: "新しいグループ",
       flexDirection: "column",
@@ -41,6 +46,7 @@ const UI_CLASSES: UIClassItem[] = [
   },
   {
     name: "DatabaseMorph",
+    icon: "🗄",
     defaultProps: {
       label: "新しいデータベース",
       viewMode: "table",
@@ -51,6 +57,7 @@ const UI_CLASSES: UIClassItem[] = [
   },
   {
     name: "BoxMorph",
+    icon: "📦",
     defaultProps: {
       label: "新しいボックス",
       width: 100,

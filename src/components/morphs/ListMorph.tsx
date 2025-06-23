@@ -4,7 +4,7 @@ interface ListMorphProps {
   onItemClick?: (item: string, index: number) => void;
 }
 
-export function ListMorph({ label, items, onItemClick }: ListMorphProps) {
+export function ListMorph({ label: _label, items, onItemClick }: ListMorphProps) {
   return (
     <div className="list-morph-container">
       <ul className="list-morph-list">

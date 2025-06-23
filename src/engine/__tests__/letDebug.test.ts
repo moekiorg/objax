@@ -3,7 +3,7 @@ import { parseObjaxWithClasses } from '../objaxEngine';
 import { presetUIClasses } from '../presetClasses';
 
 describe('Let Assignment Debug', () => {
-  it('should debug simple assignment vs expression assignment', () => {
+  it('should debug simple assignment vs expression assignment', async () => {
     console.log('=== Simple Assignment (WORKS) ===');
     const code1 = `
       box is a BoxMorph
@@ -32,7 +32,7 @@ describe('Let Assignment Debug', () => {
       const parseResult = parser.parse(code2);
       console.log('Parse errors:', parseResult.errors);
       console.log('Instances:', parseResult.instances);
-      console.log('Let assignments:', parseResult.letAssignments);
+      console.log('Becomes assignments:', parseResult.becomesAssignments);
       if (parseResult.instances.length > 0) {
         console.log('Instance properties:', parseResult.instances[0].properties);
       }

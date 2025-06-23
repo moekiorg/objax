@@ -4,7 +4,7 @@ import { useObjaxStore } from '../stores/objaxStore';
 import { presetUIClasses } from '../engine/presetClasses';
 
 export function Playground() {
-  const { togglePlayground, classes, addInstance, setCurrentPage } = useObjaxStore();
+  const { togglePlayground, classes, setCurrentPage } = useObjaxStore();
   const [code, setCode] = useState('');
   const [output, setOutput] = useState('');
   const [error, setError] = useState('');

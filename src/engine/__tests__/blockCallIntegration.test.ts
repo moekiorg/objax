@@ -117,8 +117,10 @@ describe('Block Call Integration', () => {
 
   it('should work with existing instances', () => {
     const existingInstances = [{
+      id: 'myBox_1',
       name: 'myBox',
       className: 'BoxMorph',
+      page: 'test',
       properties: {
         width: 150,
         height: 75,

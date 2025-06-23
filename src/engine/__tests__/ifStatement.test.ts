@@ -9,11 +9,11 @@ describe('If Statement', () => {
     
     const result = parser.parse(code)
     expect(result.errors).toHaveLength(0)
-    expect(result.ifStatements).toHaveLength(1)
+    expect(result.conditionalExecutions).toHaveLength(1)
     
-    const ifStatement = result.ifStatements[0]
-    expect(ifStatement.condition).toBe('isDone')
-    expect(ifStatement.action).toBe('task delete')
+    const conditionalExecution = result.conditionalExecutions[0]
+    expect(conditionalExecution.blockName).toBe('isDone')
+    expect(conditionalExecution.action).toBe('task delete')
   })
 
   it('should execute if statement when condition is true', () => {
@@ -32,14 +32,14 @@ describe('If Statement', () => {
     const ifCode = 'isDone thenDo with action <print "Condition is true">'
     const ifResult = parser.parse(ifCode)
     expect(ifResult.errors).toHaveLength(0)
-    expect(ifResult.ifStatements).toHaveLength(1)
+    expect(ifResult.conditionalExecutions).toHaveLength(1)
     
     // Execute if statement
     const executedResult = executor.execute(ifResult)
     expect(executedResult.errors).toHaveLength(0)
     
     // The if statement should have been processed
-    expect(executedResult.ifStatements).toHaveLength(1)
+    expect(executedResult.conditionalExecutions).toHaveLength(1)
   })
 
   it('should parse if statement with complex action', () => {
@@ -48,11 +48,11 @@ describe('If Statement', () => {
     
     const result = parser.parse(code)
     expect(result.errors).toHaveLength(0)
-    expect(result.ifStatements).toHaveLength(1)
+    expect(result.conditionalExecutions).toHaveLength(1)
     
-    const ifStatement = result.ifStatements[0]
-    expect(ifStatement.condition).toBe('isDone')
-    expect(ifStatement.action).toBe('myTask remove')
+    const conditionalExecution = result.conditionalExecutions[0]
+    expect(conditionalExecution.blockName).toBe('isDone')
+    expect(conditionalExecution.action).toBe('myTask remove')
   })
 
   it('should parse if statement with otherwiseDo', () => {
@@ -61,12 +61,12 @@ describe('If Statement', () => {
     
     const result = parser.parse(code)
     expect(result.errors).toHaveLength(0)
-    expect(result.ifStatements).toHaveLength(1)
+    expect(result.conditionalExecutions).toHaveLength(1)
     
-    const ifStatement = result.ifStatements[0]
-    expect(ifStatement.condition).toBe('isDone')
-    expect(ifStatement.action).toBe('print "Task completed"')
-    expect(ifStatement.otherwiseAction).toBe('print "Task not done"')
+    const conditionalExecution = result.conditionalExecutions[0]
+    expect(conditionalExecution.blockName).toBe('isDone')
+    expect(conditionalExecution.action).toBe('print "Task completed"')
+    expect(conditionalExecution.otherwiseAction).toBe('print "Task not done"')
   })
 
   it('should execute otherwiseDo when condition is false', () => {
@@ -85,16 +85,16 @@ describe('If Statement', () => {
     const ifCode = 'isNotDone thenDo with action <print "True"> otherwiseDo with action <print "False">'
     const ifResult = parser.parse(ifCode)
     expect(ifResult.errors).toHaveLength(0)
-    expect(ifResult.ifStatements).toHaveLength(1)
+    expect(ifResult.conditionalExecutions).toHaveLength(1)
     
     // Execute if statement
     const executedResult = executor.execute(ifResult)
     expect(executedResult.errors).toHaveLength(0)
     
     // The if statement should have been processed
-    expect(executedResult.ifStatements).toHaveLength(1)
-    const ifStatement = executedResult.ifStatements[0]
-    expect(ifStatement.otherwiseAction).toBe('print "False"')
+    expect(executedResult.conditionalExecutions).toHaveLength(1)
+    const conditionalExecution = executedResult.conditionalExecutions[0]
+    expect(conditionalExecution.otherwiseAction).toBe('print "False"')
   })
 
   it('should handle if statement without otherwiseDo', () => {
@@ -103,12 +103,12 @@ describe('If Statement', () => {
     
     const result = parser.parse(code)
     expect(result.errors).toHaveLength(0)
-    expect(result.ifStatements).toHaveLength(1)
+    expect(result.conditionalExecutions).toHaveLength(1)
     
-    const ifStatement = result.ifStatements[0]
-    expect(ifStatement.condition).toBe('isDone')
-    expect(ifStatement.action).toBe('print "Only if true"')
-    expect(ifStatement.otherwiseAction).toBeUndefined()
+    const conditionalExecution = result.conditionalExecutions[0]
+    expect(conditionalExecution.blockName).toBe('isDone')
+    expect(conditionalExecution.action).toBe('print "Only if true"')
+    expect(conditionalExecution.otherwiseAction).toBeUndefined()
   })
 
   it('should handle complex conditions and actions', () => {
@@ -117,12 +117,12 @@ describe('If Statement', () => {
     
     const result = parser.parse(code)
     expect(result.errors).toHaveLength(0)
-    expect(result.ifStatements).toHaveLength(1)
+    expect(result.conditionalExecutions).toHaveLength(1)
     
-    const ifStatement = result.ifStatements[0]
-    expect(ifStatement.condition).toBe('myTask.done')
-    expect(ifStatement.action).toBe('myTask remove')
-    expect(ifStatement.otherwiseAction).toBe('myTask show')
+    const conditionalExecution = result.conditionalExecutions[0]
+    expect(conditionalExecution.blockName).toBe('myTask.done')
+    expect(conditionalExecution.action).toBe('myTask remove')
+    expect(conditionalExecution.otherwiseAction).toBe('myTask show')
   })
 
   it('should execute correct branch based on condition evaluation', () => {

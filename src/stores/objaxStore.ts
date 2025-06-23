@@ -262,3 +262,5 @@ export const useObjaxStore = create<ObjaxStore>()(
     ),
   ),
 );
+
+export type UseObjaxStore = ReturnType<typeof useObjaxStore>;

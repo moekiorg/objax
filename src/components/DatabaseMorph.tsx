@@ -12,10 +12,10 @@ export const DatabaseMorph: React.FC<DatabaseMorphProps> = ({
   instance,
   dataInstances,
   onUpdate,
-  onInspect,
+  onInspect: _onInspect,
 }) => {
   // Only search for data source in the same page as this DatabaseMorph
-  const dataSource = dataInstances.find(
+  const dataSource: ObjaxInstance | undefined = dataInstances.find(
     (inst) => inst.name === instance.dataSource && inst.page === instance.page
   );
   const viewMode = instance.viewMode || "table";
@@ -27,33 +27,33 @@ export const DatabaseMorph: React.FC<DatabaseMorphProps> = ({
     }
 
     // Handle TaskList and other custom classes that have an "items" field
-    if (dataSource.items && Array.isArray(dataSource.items)) {
-      return dataSource.items.map((item, index) => {
+    if (dataSource?.items && Array.isArray(dataSource.items)) {
+      return dataSource.items.map((item: any, index: number) => {
         // Handle different item formats
         if (typeof item === "string") {
           return { id: index, value: item, title: item };
         } else if (item && typeof item === "object") {
           // Handle Task-like objects with properties
-          if (item.properties?.title) {
+          if ((item as any).properties?.title) {
             return {
               id: index,
-              value: item.properties.title,
-              title: item.properties.title,
-              className: item.className,
+              value: (item as any).properties.title,
+              title: (item as any).properties.title,
+              className: (item as any).className,
               fullItem: item,
             };
-          } else if (item.title) {
+          } else if ((item as any).title) {
             return {
               id: index,
-              value: item.title,
-              title: item.title,
+              value: (item as any).title,
+              title: (item as any).title,
               fullItem: item,
             };
-          } else if (item.name) {
+          } else if ((item as any).name) {
             return {
               id: index,
-              value: item.name,
-              title: item.name,
+              value: (item as any).name,
+              title: (item as any).name,
               fullItem: item,
             };
           } else {
@@ -76,21 +76,21 @@ export const DatabaseMorph: React.FC<DatabaseMorphProps> = ({
     }
 
     // Handle ListMorph specifically
-    if (dataSource.type === "ListMorph" && dataSource.items) {
-      return dataSource.items.map((item, index) => ({
+    if (dataSource?.type === "ListMorph" && dataSource.items) {
+      return dataSource.items.map((item: any, index: number) => ({
         id: index,
         value: item,
       }));
     }
 
     // For other types, return the instance itself as data
-    if (dataSource.value !== undefined) {
+    if (dataSource?.value !== undefined) {
       return [
         {
           id: 0,
-          value: dataSource.value,
-          label: dataSource.label,
-          name: dataSource.name,
+          value: dataSource?.value,
+          label: dataSource?.label,
+          name: dataSource?.name,
         },
       ];
     }
@@ -125,7 +125,7 @@ export const DatabaseMorph: React.FC<DatabaseMorphProps> = ({
             </tr>
           </thead>
           <tbody>
-            {data.map((row, rowIndex) => (
+            {data.map((row: any, rowIndex: number) => (
               <tr key={row.id || rowIndex} className="hover:bg-gray-50">
                 {columns.map((column) => (
                   <td
@@ -155,7 +155,7 @@ export const DatabaseMorph: React.FC<DatabaseMorphProps> = ({
 
     return (
       <div className="grid grid-cols-2 gap-2 p-2 bg-white border rounded-lg">
-        {data.map((item, index) => (
+        {data.map((item: any, index: number) => (
           <div
             key={item.id || index}
             className="p-3 border rounded bg-gray-50 hover:bg-gray-100"

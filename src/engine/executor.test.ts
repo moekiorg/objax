@@ -44,6 +44,12 @@ describe('ObjaxExecutor', () => {
       instanceConfigurations: [],
       eventListeners: [],
       blockAssignments: [],
+      blockCalls: [],
+      becomesAssignments: [],
+      timerOperations: [],
+      conditionalBlocks: [],
+      conditionalExecutions: [],
+      conditionalOtherwiseExecutions: [],
       errors: []
     })
     
@@ -125,6 +131,12 @@ describe('ObjaxExecutor', () => {
       instanceConfigurations: [],
       eventListeners: [],
       blockAssignments: [],
+      blockCalls: [],
+      becomesAssignments: [],
+      timerOperations: [],
+      conditionalBlocks: [],
+      conditionalExecutions: [],
+      conditionalOtherwiseExecutions: [],
       errors: []
     })
     

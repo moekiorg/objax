@@ -6,7 +6,7 @@ interface WindowMessageProps {
 }
 
 export const WindowMessage: React.FC<WindowMessageProps> = ({
-  targetInstance,
+  targetInstance: _targetInstance,
   onSend,
 }) => {
   const [code, setCode] = useState("");

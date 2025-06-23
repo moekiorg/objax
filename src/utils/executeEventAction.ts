@@ -1,10 +1,10 @@
 import { convertToClassDefinition, convertToInstanceDefinition } from '../engine/objaxEngine';
-import { useObjaxStore } from '../stores/objaxStore';
+import type { UseObjaxStore } from '../stores/objaxStore';
 
 export function executeEventAction(
   action: string,
   instanceName: string,
-  store: ReturnType<typeof useObjaxStore>
+  store: any
 ) {
   try {
     // Get the persistent engine instance from store

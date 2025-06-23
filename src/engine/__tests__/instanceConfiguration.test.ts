@@ -1,3 +1,4 @@
+import { describe, expect, it, beforeEach } from 'vitest'
 import { LinearObjaxParser } from '../linearParser'
 import { ObjaxExecutor } from '../executor'
 
@@ -10,7 +11,7 @@ describe('Instance Configuration', () => {
     executor = new ObjaxExecutor()
   })
 
-  test('should parse instance field configuration', () => {
+  it('should parse instance field configuration', () => {
     const code = `
       view is a DatabaseMorph
       view has field "title"
@@ -33,7 +34,7 @@ describe('Instance Configuration', () => {
     expect(result.instanceConfigurations[1].value).toBe('done')
   })
 
-  test('should execute instance field configuration', () => {
+  it('should execute instance field configuration', () => {
     const code = `
       view is a DatabaseMorph
       view has field "title"
@@ -49,7 +50,7 @@ describe('Instance Configuration', () => {
     expect(instance.properties.fields).toEqual(['title', 'done'])
   })
 
-  test('should not add duplicate fields', () => {
+  it('should not add duplicate fields', () => {
     const code = `
       view is a DatabaseMorph
       view has field "title"
@@ -63,7 +64,7 @@ describe('Instance Configuration', () => {
     expect(instance.properties.fields).toEqual(['title'])
   })
 
-  test('should handle complex DatabaseMorph configuration', () => {
+  it('should handle complex DatabaseMorph configuration', () => {
     const code = `
       TaskList is a Class
       TaskList has field "items"
@@ -85,7 +86,7 @@ describe('Instance Configuration', () => {
     expect(databaseMorph?.properties.fields).toEqual(['title', 'done', 'priority'])
   })
 
-  test('should handle instance configuration with existing instances', () => {
+  it('should handle instance configuration with existing instances', () => {
     const code = `
       view has field "title"
       view has field "done"
@@ -107,7 +108,7 @@ describe('Instance Configuration', () => {
     expect(instance?.properties.fields).toEqual(['title', 'done'])
   })
 
-  test('should error when configuring non-existent instance', () => {
+  it('should error when configuring non-existent instance', () => {
     const code = `
       nonExistentView has field "title"
     `

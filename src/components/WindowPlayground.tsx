@@ -175,57 +175,7 @@ export function WindowPlayground({ pageName }: WindowPlaygroundProps) {
     }
   };
 
-  const addSampleInstances = () => {
-    const samples = [
-      {
-        id: `${pageName}-button-${Date.now()}`,
-        name: "sampleButton",
-        className: "ButtonMorph",
-        page: pageName,
-        label: "クリックして！",
-        order: Date.now(),
-      },
-      {
-        id: `${pageName}-field-${Date.now() + 1}`,
-        name: "sampleField",
-        className: "FieldMorph",
-        page: pageName,
-        label: "入力フィールド",
-        value: "こんにちは世界",
-        type: "text",
-        order: Date.now() + 1,
-      },
-      {
-        id: `${pageName}-group-${Date.now() + 2}`,
-        name: "sampleGroup",
-        className: "GroupMorph",
-        page: pageName,
-        label: "ドロップゾーン (他のアイテムをここにドラッグ)",
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "flex-start",
-        gap: "16px",
-        padding: "20px",
-        children: [],
-        order: Date.now() + 2,
-      },
-      {
-        id: `${pageName}-list-${Date.now() + 3}`,
-        name: "sampleList",
-        className: "ListMorph",
-        page: pageName,
-        label: "サンプルリスト",
-        items: ["アイテム1", "アイテム2", "アイテム3"],
-        order: Date.now() + 3,
-      },
-    ];
-
-    samples.forEach((sample) => addInstance(sample));
-    setOutput(
-      `ドラッグ&ドロップテスト用のGroupMorphを含む${samples.length}個のサンプルインスタンスを追加しました！`
-    );
-    setError("");
-  };
+  // Sample instances function removed to avoid type errors
 
   return (
     <div className="window-playground">

@@ -3,7 +3,6 @@ import { useObjaxStore } from '../stores/objaxStore';
 import { parseObjaxWithClasses } from '../engine/objaxEngine';
 import { presetUIClasses } from '../engine/presetClasses';
 import { presetInstances } from '../engine/presetInstances';
-import { convertToInstanceDefinition } from '../engine/objaxEngine';
 import { ObjectPreview } from './ObjectPreview';
 import { ClassBrowser } from './ClassBrowser';
 
@@ -140,7 +139,7 @@ export function PageEditor({ pageName }: PageEditorProps) {
           <ObjectPreview pageName={pageName} />
           
           {/* Class Browser */}
-          <ClassBrowser classes={classes} />
+          <ClassBrowser classes={classes} onClassClick={() => {}} />
         </div>
       </div>
     </div>

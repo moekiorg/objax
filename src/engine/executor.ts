@@ -1,4 +1,4 @@
-import type { ObjaxExecutionResult, ObjaxClassDefinition, ObjaxInstanceDefinition, ObjaxMethodCall, ObjaxListOperation, ObjaxVariableAssignment, ObjaxFieldAssignment, ObjaxPrintStatement, ObjaxConnection, ObjaxMorphOperation, ObjaxMessageExecution, ObjaxInstanceConfiguration, ObjaxEventListener, ObjaxBlockAssignment, ObjaxBlockCall, ObjaxBecomesAssignment, ObjaxExpression, ObjaxTimerOperation, ObjaxConditionalBlock, ObjaxConditionalExecution, ObjaxConditionalOtherwiseExecution, ObjaxCondition } from './types'
+import type { ObjaxExecutionResult, ObjaxClassDefinition, ObjaxInstanceDefinition, ObjaxMethodCall, ObjaxListOperation, ObjaxVariableAssignment, ObjaxFieldAssignment, ObjaxPrintStatement, ObjaxConnection, ObjaxMorphOperation, ObjaxMessageExecution, ObjaxInstanceConfiguration, ObjaxEventListener, ObjaxBlockAssignment, ObjaxBlockCall, ObjaxBecomesAssignment, ObjaxExpression, ObjaxTimerOperation, ObjaxConditionalExecution, ObjaxConditionalOtherwiseExecution, ObjaxCondition } from './types'
 import { LinearObjaxParser } from './linearParser'
 
 export class ObjaxExecutor {
@@ -6,7 +6,7 @@ export class ObjaxExecutor {
   private blockRegistry: Map<string, string> = new Map()
   private blockParameters: Map<string, string[]> = new Map()
   private conditionalBlockRegistry: Map<string, ObjaxCondition> = new Map()
-  private timers: Map<string, NodeJS.Timeout> = new Map()
+  private timers: Map<string, number> = new Map()
   
   execute(result: ObjaxExecutionResult, allClasses: ObjaxClassDefinition[] = []): ObjaxExecutionResult {
     const instances = [...result.instances]
@@ -256,7 +256,7 @@ export class ObjaxExecutor {
     if (instance.className === 'State') {
       if (methodCall.methodName === 'set' && methodCall.parameters && methodCall.parameters.length > 0) {
         // Set the State's value
-        instance.properties.value = methodCall.parameters[0]
+        instance.properties.value = methodCall.parameters?.[0]
         return
       }
       if (methodCall.methodName === 'get') {
@@ -470,7 +470,7 @@ export class ObjaxExecutor {
           delete instance.properties[varName];
         } else {
           // Otherwise, use the parameter value
-          const valueToAdd = parameters && parameters.length > 0 && instances ? this.resolveParameterValue(parameters[0], instances) : varName;
+          const valueToAdd = positionalParameters && positionalParameters.length > 0 && instances ? this.resolveParameterValue(positionalParameters[0], instances) : varName;
           instance.properties[fieldName] = [...currentList, valueToAdd];
         }
         continue;
@@ -481,7 +481,7 @@ export class ObjaxExecutor {
       if (addToListMatch) {
         const [, paramName, fieldName] = addToListMatch;
         const currentList = instance.properties[fieldName] || [];
-        const valueToAdd = parameters && parameters.length > 0 && instances ? this.resolveParameterValue(parameters[0], instances) : paramName;
+        const valueToAdd = positionalParameters && positionalParameters.length > 0 && instances ? this.resolveParameterValue(positionalParameters[0], instances) : paramName;
         instance.properties[fieldName] = [...currentList, valueToAdd];
       }
     }
@@ -489,9 +489,9 @@ export class ObjaxExecutor {
     return; // If we processed statements successfully
 
     // Pattern 4: Simple keyword parameter assignment to field
-    if (keywordParameters && Object.keys(keywordParameters).length > 0) {
+    if (keywordParameters && Object.keys(keywordParameters || {}).length > 0) {
       // Store all keyword parameters as properties
-      Object.entries(keywordParameters).forEach(([key, value]) => {
+      Object.entries(keywordParameters || {}).forEach(([key, value]) => {
         const resolvedValue = instances ? this.resolveParameterValue(value, instances) : value
         instance.properties[key] = resolvedValue
       })
@@ -616,7 +616,7 @@ export class ObjaxExecutor {
       
       // Execute any field assignments from the message context
       for (const fieldAssignment of subResult.fieldAssignments) {
-        this.executeFieldAssignment(fieldAssignment, instances, classes)
+        this.executeFieldAssignment(fieldAssignment, instances)
       }
       
       // Execute any let assignments from the message context
@@ -625,7 +625,7 @@ export class ObjaxExecutor {
       }
       
       // Execute any state operations from the message context
-      for (const stateOp of subResult.stateOperations) {
+      for (const _stateOp of subResult.stateOperations) {
         // Note: State operations would need access to the global state store
         // For now we'll handle basic field updates
         // This is a simplified implementation
@@ -951,6 +951,10 @@ export class ObjaxExecutor {
       blockAssignments: allResults.flatMap(r => r.blockAssignments || []),
       blockCalls: allResults.flatMap(r => r.blockCalls || []),
       becomesAssignments: allResults.flatMap(r => r.becomesAssignments || []),
+      timerOperations: allResults.flatMap(r => r.timerOperations || []),
+      conditionalBlocks: allResults.flatMap(r => r.conditionalBlocks || []),
+      conditionalExecutions: allResults.flatMap(r => r.conditionalExecutions || []),
+      conditionalOtherwiseExecutions: allResults.flatMap(r => r.conditionalOtherwiseExecutions || []),
       errors: allErrors
     }
   }
@@ -1013,7 +1017,7 @@ export class ObjaxExecutor {
 
   // Method to stop all timers (useful for cleanup)
   stopAllTimers() {
-    for (const [timerId, timer] of this.timers) {
+    for (const [_timerId, timer] of this.timers) {
       clearInterval(timer)
     }
     this.timers.clear()
