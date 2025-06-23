@@ -391,6 +391,21 @@
   box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
 }
 
+.inspector-input-error {
+  border-color: #ef4444;
+}
+
+.inspector-input-error:focus {
+  border-color: #dc2626;
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.2);
+}
+
+.inspector-error-message {
+  font-size: 0.75rem;
+  color: #dc2626;
+  margin-top: 0.25rem;
+}
+
 .inspector-textarea {
   width: 100%;
   padding: 0.5rem 0.75rem;
@@ -405,6 +420,57 @@
   outline: none;
   border-color: #2563eb;
   box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+}
+
+.inspector-field-help {
+  font-size: 0.75rem;
+  color: #6b7280;
+  margin-top: 0.25rem;
+}
+
+.inspector-properties-subtitle {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #374151;
+  margin: 1rem 0 0.5rem 0;
+  border-bottom: 1px solid #e5e7eb;
+  padding-bottom: 0.25rem;
+}
+
+.inspector-field-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.inspector-add-property-name,
+.inspector-add-property-value {
+  flex: 1;
+}
+
+.inspector-delete-field {
+  background-color: #f87171;
+  color: white;
+  border: none;
+  border-radius: 0.25rem;
+  width: 1.5rem;
+  height: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 0.75rem;
+  font-weight: bold;
+}
+
+.inspector-delete-field:hover {
+  background-color: #dc2626;
+}
+
+.inspector-add-property {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #e5e7eb;
 }
 
 /* ClassBrowser Component */

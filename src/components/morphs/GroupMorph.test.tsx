@@ -12,9 +12,13 @@ describe('GroupMorph', () => {
       </GroupMorph>
     );
     
-    expect(screen.getByText('Controls')).toBeInTheDocument();
+    // ラベルは表示されないため、子要素のボタンのみを確認
     expect(screen.getByRole('button', { name: /submit/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /cancel/i })).toBeInTheDocument();
+    
+    // 背景色が設定されていることを確認
+    const container = screen.getByTestId('group-morph-content');
+    expect(container).toHaveStyle('background-color: rgb(245, 245, 245)');
   });
 
   it('should apply layout styles based on props', () => {

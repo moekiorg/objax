@@ -1,8 +1,118 @@
 import { describe, expect, it } from 'vitest'
 import { ObjaxExecutor } from './executor'
-import type { ObjaxClassDefinition, ObjaxInstanceDefinition, ObjaxMethodCall, ObjaxBlockAssignment } from './types'
+import type { ObjaxClassDefinition, ObjaxInstanceDefinition, ObjaxMethodCall, ObjaxBlockAssignment, ObjaxMorphOperation } from './types'
 
 describe('ObjaxExecutor', () => {
+  it('should execute List add method', () => {
+    const executor = new ObjaxExecutor()
+    
+    const listClass: ObjaxClassDefinition = {
+      name: 'List',
+      fields: [
+        { name: 'items', defaultValue: [] }
+      ],
+      methods: [
+        { name: 'add', parameters: ['item'], body: 'self.items is self.items + [item]' },
+        { name: 'remove', parameters: ['item'], body: 'self.items is self.items - [item]' }
+      ]
+    }
+    
+    const listInstance: ObjaxInstanceDefinition = {
+      name: 'myList',
+      className: 'List',
+      properties: { items: [] }
+    }
+    
+    const addCall: ObjaxMethodCall = {
+      methodName: 'add',
+      instanceName: 'myList',
+      parameters: ['apple']
+    }
+    
+    const result = executor.execute({
+      classes: [listClass],
+      instances: [listInstance],
+      methodCalls: [addCall],
+      stateOperations: [],
+      stateRetrievals: [],
+      pageNavigations: [],
+      listOperations: [],
+      variableAssignments: [],
+      fieldAssignments: [],
+      connections: [],
+      morphOperations: [],
+      printStatements: [],
+      messageExecutions: [],
+      instanceConfigurations: [],
+      eventListeners: [],
+      blockAssignments: [],
+      blockCalls: [],
+      becomesAssignments: [],
+      timerOperations: [],
+      conditionalBlocks: [],
+      conditionalExecutions: [],
+      conditionalOtherwiseExecutions: [],
+      errors: []
+    })
+    
+    expect(result.instances[0].properties.items).toEqual(['apple'])
+  })
+
+  it('should execute List remove method', () => {
+    const executor = new ObjaxExecutor()
+    
+    const listClass: ObjaxClassDefinition = {
+      name: 'List',
+      fields: [
+        { name: 'items', defaultValue: [] }
+      ],
+      methods: [
+        { name: 'add', parameters: ['item'], body: 'self.items is self.items + [item]' },
+        { name: 'remove', parameters: ['item'], body: 'self.items is self.items - [item]' }
+      ]
+    }
+    
+    const listInstance: ObjaxInstanceDefinition = {
+      name: 'myList',
+      className: 'List',
+      properties: { items: ['apple', 'banana', 'cherry'] }
+    }
+    
+    const removeCall: ObjaxMethodCall = {
+      methodName: 'remove',
+      instanceName: 'myList',
+      parameters: ['banana']
+    }
+    
+    const result = executor.execute({
+      classes: [listClass],
+      instances: [listInstance],
+      methodCalls: [removeCall],
+      stateOperations: [],
+      stateRetrievals: [],
+      pageNavigations: [],
+      listOperations: [],
+      variableAssignments: [],
+      fieldAssignments: [],
+      connections: [],
+      morphOperations: [],
+      printStatements: [],
+      messageExecutions: [],
+      instanceConfigurations: [],
+      eventListeners: [],
+      blockAssignments: [],
+      blockCalls: [],
+      becomesAssignments: [],
+      timerOperations: [],
+      conditionalBlocks: [],
+      conditionalExecutions: [],
+      conditionalOtherwiseExecutions: [],
+      errors: []
+    })
+    
+    expect(result.instances[0].properties.items).toEqual(['apple', 'cherry'])
+  })
+
   it('should execute a simple method call', () => {
     const executor = new ObjaxExecutor()
     
@@ -338,5 +448,64 @@ describe('ObjaxExecutor', () => {
     expect(result.errors).toHaveLength(0)
     // The timer should be set up without errors
     // The actual timer execution would happen asynchronously
+  })
+
+  it('should handle morph add operation - add child to parent', () => {
+    const executor = new ObjaxExecutor()
+
+    const groupInstance: ObjaxInstanceDefinition = {
+      name: 'myGroup',
+      className: 'GroupMorph',
+      properties: { children: [], page: 'test' }
+    }
+
+    const buttonInstance: ObjaxInstanceDefinition = {
+      name: 'myButton',
+      className: 'ButtonMorph',
+      properties: { label: 'Click me', page: 'test' }
+    }
+
+    const morphOperation: ObjaxMorphOperation = {
+      operation: 'add',
+      parentInstance: 'myGroup',
+      childInstance: 'myButton'
+    }
+
+    const result = executor.execute({
+      classes: [],
+      instances: [groupInstance, buttonInstance],
+      methodCalls: [],
+      stateOperations: [],
+      stateRetrievals: [],
+      pageNavigations: [],
+      listOperations: [],
+      variableAssignments: [],
+      fieldAssignments: [],
+      connections: [],
+      morphOperations: [morphOperation],
+      printStatements: [],
+      messageExecutions: [],
+      instanceConfigurations: [],
+      eventListeners: [],
+      blockAssignments: [],
+      blockCalls: [],
+      becomesAssignments: [],
+      timerOperations: [],
+      conditionalBlocks: [],
+      conditionalExecutions: [],
+      conditionalOtherwiseExecutions: [],
+      errors: []
+    })
+
+    expect(result.errors).toHaveLength(0)
+    
+    // Check that the button was added to the group's children
+    const updatedGroup = result.instances.find(i => i.name === 'myGroup')
+    expect(updatedGroup?.properties.children).toHaveLength(1)
+    expect(updatedGroup?.properties.children[0].name).toBe('myButton')
+    
+    // Check that the child has parent reference
+    const updatedButton = result.instances.find(i => i.name === 'myButton')
+    expect(updatedButton?.properties.parentId).toBe(updatedGroup?.properties.id)
   })
 })

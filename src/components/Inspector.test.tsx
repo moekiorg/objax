@@ -286,4 +286,55 @@ describe('Inspector', () => {
     expect(screen.getByText('フィールド (カンマ区切り)')).toBeInTheDocument();
     expect(screen.getByPlaceholderText('例: title, completed, priority')).toBeInTheDocument();
   });
+
+  it('should render editable checkbox for FieldMorph', () => {
+    const mockInstance = {
+      id: 'test-1',
+      name: 'testField',
+      className: 'FieldMorph',
+      page: 'TestPage',
+      value: 'test value',
+      editable: true
+    };
+    
+    render(<Inspector instance={mockInstance} onClose={vi.fn()} />);
+    
+    expect(screen.getByText('編集可能')).toBeInTheDocument();
+    expect(screen.getByRole('checkbox')).toBeChecked();
+  });
+
+  it('should allow toggling editable property for FieldMorph', () => {
+    const mockInstance = {
+      id: 'test-1',
+      name: 'testField',
+      className: 'FieldMorph',
+      page: 'TestPage',
+      value: 'test value',
+      editable: true
+    };
+    const onUpdate = vi.fn();
+    
+    render(<Inspector instance={mockInstance} onClose={vi.fn()} onUpdate={onUpdate} />);
+    
+    const editableCheckbox = screen.getByRole('checkbox');
+    fireEvent.click(editableCheckbox);
+    
+    expect(onUpdate).toHaveBeenCalledWith('test-1', { editable: false });
+  });
+
+  it('should default editable to true for FieldMorph when not specified', () => {
+    const mockInstance = {
+      id: 'test-1',
+      name: 'testField',
+      className: 'FieldMorph',
+      page: 'TestPage',
+      value: 'test value'
+      // editable not specified
+    };
+    
+    render(<Inspector instance={mockInstance} onClose={vi.fn()} />);
+    
+    expect(screen.getByText('編集可能')).toBeInTheDocument();
+    expect(screen.getByRole('checkbox')).toBeChecked(); // Should default to true
+  });
 });

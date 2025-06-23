@@ -43,10 +43,11 @@ export const DatabaseMorph: React.FC<DatabaseMorphProps> = ({
               fullItem: item,
             };
           } else if ((item as any).title) {
+            // オブジェクトのすべてのプロパティを保持する
             return {
               id: index,
               value: (item as any).title,
-              title: (item as any).title,
+              ...(typeof item === 'object' && item !== null ? item : {}), // オブジェクトのすべてのプロパティをスプレッド
               fullItem: item,
             };
           } else if ((item as any).name) {
@@ -104,6 +105,31 @@ export const DatabaseMorph: React.FC<DatabaseMorphProps> = ({
   const displayFields = instance.fields || instance.columns || [];
   const columns = displayFields;
 
+  // チェックボックス変更のハンドラー
+  const handleCheckboxChange = (rowIndex: number, fieldName: string, newValue: boolean) => {
+    if (!dataSource || !onUpdate) return;
+
+    // データソースのitemsを更新
+    const updatedItems = [...(dataSource.items || [])];
+    if (updatedItems[rowIndex]) {
+      const currentItem = updatedItems[rowIndex];
+      // Only update if the current item is an object (not a string)
+      if (typeof currentItem === 'object' && currentItem !== null && !Array.isArray(currentItem)) {
+        const updatedItem = {
+          ...(currentItem as Record<string, any>),
+          [fieldName]: newValue
+        };
+        (updatedItems as any[])[rowIndex] = updatedItem;
+
+        // データソースインスタンスを更新
+        onUpdate(dataSource.id, {
+          ...dataSource,
+          items: updatedItems
+        });
+      }
+    }
+  };
+
   const renderTableView = () => {
     if (columns.length === 0) {
       return null;
@@ -127,14 +153,28 @@ export const DatabaseMorph: React.FC<DatabaseMorphProps> = ({
           <tbody>
             {data.map((row: any, rowIndex: number) => (
               <tr key={row.id || rowIndex} className="hover:bg-gray-50">
-                {columns.map((column) => (
-                  <td
-                    key={column}
-                    className="px-4 py-2 text-sm text-gray-900 border-b"
-                  >
-                    {row[column as keyof typeof row] || ""}
-                  </td>
-                ))}
+                {columns.map((column) => {
+                  const value = row[column as keyof typeof row];
+                  const isBoolean = typeof value === 'boolean';
+                  
+                  return (
+                    <td
+                      key={column}
+                      className="px-4 py-2 text-sm text-gray-900 border-b"
+                    >
+                      {isBoolean ? (
+                        <input
+                          type="checkbox"
+                          checked={value}
+                          onChange={(e) => handleCheckboxChange(rowIndex, column, e.target.checked)}
+                          className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
+                        />
+                      ) : (
+                        value || ""
+                      )}
+                    </td>
+                  );
+                })}
               </tr>
             ))}
           </tbody>
@@ -160,14 +200,28 @@ export const DatabaseMorph: React.FC<DatabaseMorphProps> = ({
             key={item.id || index}
             className="p-3 border rounded bg-gray-50 hover:bg-gray-100"
           >
-            {columns.map((column) => (
-              <div key={column} className="text-sm">
-                <span className="font-medium text-gray-700">{column}:</span>{" "}
-                <span className="text-gray-900">
-                  {item[column as keyof typeof item] || ""}
-                </span>
-              </div>
-            ))}
+            {columns.map((column) => {
+              const value = item[column as keyof typeof item];
+              const isBoolean = typeof value === 'boolean';
+              
+              return (
+                <div key={column} className="text-sm">
+                  <span className="font-medium text-gray-700">{column}:</span>{" "}
+                  {isBoolean ? (
+                    <input
+                      type="checkbox"
+                      checked={value}
+                      onChange={(e) => handleCheckboxChange(index, column, e.target.checked)}
+                      className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 ml-2"
+                    />
+                  ) : (
+                    <span className="text-gray-900">
+                      {value || ""}
+                    </span>
+                  )}
+                </div>
+              );
+            })}
           </div>
         ))}
         {data.length === 0 && (

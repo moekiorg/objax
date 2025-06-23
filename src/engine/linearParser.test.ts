@@ -507,4 +507,32 @@ timer repeat with time "1 second" and action "allGrow"`;
     expect(methodCall.keywordParameters?.time).toBe('1 second');
     expect(methodCall.keywordParameters?.action).toBe('allGrow');
   });
+
+  it('should parse modern add with child syntax', () => {
+    const parser = new LinearObjaxParser();
+    const code = 'myGroup add myButton';
+
+    const result = parser.parse(code);
+    expect(result.errors).toHaveLength(0);
+    expect(result.morphOperations).toHaveLength(1);
+    
+    const morphOp = result.morphOperations[0];
+    expect(morphOp.operation).toBe('add');
+    expect(morphOp.parentInstance).toBe('myGroup');
+    expect(morphOp.childInstance).toBe('myButton');
+  });
+
+  it('should parse legacy include with child syntax', () => {
+    const parser = new LinearObjaxParser();
+    const code = 'myGroup include with child myButton';
+
+    const result = parser.parse(code);
+    expect(result.errors).toHaveLength(0);
+    expect(result.morphOperations).toHaveLength(1);
+    
+    const morphOp = result.morphOperations[0];
+    expect(morphOp.operation).toBe('add');
+    expect(morphOp.parentInstance).toBe('myGroup');
+    expect(morphOp.childInstance).toBe('myButton');
+  });
 });

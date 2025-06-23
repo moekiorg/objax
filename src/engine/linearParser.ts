@@ -228,6 +228,10 @@ export class LinearObjaxParser {
     else if (this.isBecomesAssignment(tokens)) {
       this.handleBecomesAssignment(tokens);
     }
+    // Parameterized call (must be before isBlockCall)
+    else if (this.isParameterizedCall(tokens)) {
+      this.handleParameterizedCall(tokens);
+    }
     // Block call: "blockName call"
     else if (this.isBlockCall(tokens)) {
       this.handleBlockCall(tokens);
@@ -282,8 +286,8 @@ export class LinearObjaxParser {
   private tokenize(line: string): Token[] {
     const tokens: Token[] = [];
 
-    // First, extract action blocks <...>
-    const actionBlockRegex = /<[^>]*>/g;
+    // First, extract action blocks "..." (double quotes for actions)
+    const actionBlockRegex = /"[^"]*"/g;
     const actionBlocks: string[] = [];
     let processedLine = line;
 
@@ -305,18 +309,6 @@ export class LinearObjaxParser {
       const placeholder = `__SINGLEQUOTE_${singleQuoteStrings.length}__`;
       singleQuoteStrings.push(stringContent);
       processedLine = processedLine.replace(stringContent, placeholder);
-    }
-
-    // Extract double quote code blocks "..."
-    const doubleQuoteRegex = /"[^"]*"/g;
-    const doubleQuoteBlocks: string[] = [];
-
-    let doubleQuoteMatch;
-    while ((doubleQuoteMatch = doubleQuoteRegex.exec(processedLine)) !== null) {
-      const blockContent = doubleQuoteMatch[0];
-      const placeholder = `__DOUBLEQUOTE_${doubleQuoteBlocks.length}__`;
-      doubleQuoteBlocks.push(blockContent);
-      processedLine = processedLine.replace(blockContent, placeholder);
     }
 
     // Array syntax removed - using List instances instead
@@ -357,13 +349,7 @@ export class LinearObjaxParser {
         value = singleQuoteStrings[stringIndex];
       }
 
-      // Replace double quote placeholders back with actual code blocks
-      if (value.startsWith('__DOUBLEQUOTE_') && value.endsWith('__')) {
-        const blockIndex = parseInt(
-          value.replace('__DOUBLEQUOTE_', '').replace('__', ''),
-        );
-        value = doubleQuoteBlocks[blockIndex];
-      }
+      // This section was removed - double quotes are now action blocks
 
       // Replace block placeholders back with actual block content
       if (value.startsWith('__BLOCK_') && value.endsWith('__')) {
@@ -417,10 +403,10 @@ export class LinearObjaxParser {
     if (value === 'defineMethod') return 'DEFINEMETHOD';
     if (value === 'true') return 'TRUE';
     if (value === 'false') return 'FALSE';
+    if (value === 'call') return 'CALL';
     if (value.startsWith("'") && value.endsWith("'")) return 'STRING';
-    if (value.startsWith('"') && value.endsWith('"')) return 'CODEBLOCK';
+    if (value.startsWith('"') && value.endsWith('"')) return 'ACTIONBLOCK';
     // Removed ARRAY support - using List instances instead
-    if (value.startsWith('<') && value.endsWith('>')) return 'ACTIONBLOCK';
     if (value.startsWith('(') && value.endsWith(')')) return 'BLOCK';
     // Removed CODEBLOCK support - using strings instead
     if (/^\d+(\.\d+)?$/.test(value)) return 'NUMBER';
@@ -548,7 +534,18 @@ export class LinearObjaxParser {
     if (!this.currentClass) return;
 
     // "ClassName has field "fieldName" [has default value]"
-    const fieldName = this.extractStringValue(tokens[3]);
+    // Accept both STRING and CODEBLOCK for field names
+    const fieldNameToken = tokens[3];
+    let fieldName: string;
+    
+    if (fieldNameToken.type === 'STRING') {
+      fieldName = this.extractStringValue(fieldNameToken);
+    } else if (fieldNameToken.type === 'ACTIONBLOCK') {
+      fieldName = this.extractActionBlockValue(fieldNameToken);
+    } else {
+      throw new Error(`Expected string or action block for field name, got ${fieldNameToken.value}`);
+    }
+    
     let defaultValue: any;
 
     // Check for default value
@@ -617,12 +614,12 @@ export class LinearObjaxParser {
 
     // Extract field name
     const fieldNameToken = tokens[nameIndex + 1];
-    if (!fieldNameToken || (fieldNameToken.type !== 'STRING' && fieldNameToken.type !== 'CODEBLOCK')) {
+    if (!fieldNameToken || (fieldNameToken.type !== 'STRING' && fieldNameToken.type !== 'ACTIONBLOCK')) {
       throw new Error('Invalid defineField syntax: field name must be a string');
     }
     const fieldName = fieldNameToken.type === 'STRING' 
       ? this.extractStringValue(fieldNameToken)
-      : this.extractCodeBlockValue(fieldNameToken);
+      : this.extractActionBlockValue(fieldNameToken);
 
     // Check for default value
     let defaultValue: any;
@@ -659,12 +656,12 @@ export class LinearObjaxParser {
       }
       const methodName = this.extractStringValue(methodNameToken);
 
-      // Extract body from code block (double quotes)
+      // Extract body from action block (double quotes)
       const bodyToken = tokens[doIndex + 1];
-      if (!bodyToken || bodyToken.type !== 'CODEBLOCK') {
-        throw new Error('Method body must be a code block (double quotes)');
+      if (!bodyToken || bodyToken.type !== 'ACTIONBLOCK') {
+        throw new Error('Method body must be an action block (double quotes)');
       }
-      const body = this.extractCodeBlockValue(bodyToken);
+      const body = this.extractActionBlockValue(bodyToken);
 
       const method: ObjaxMethodDefinition = {
         name: methodName,
@@ -696,14 +693,14 @@ export class LinearObjaxParser {
       }
     }
 
-    // The body should be a code block (double quotes)
+    // The body should be an action block (double quotes)
     const bodyToken = tokens[doIndex + 1];
-    if (!bodyToken || bodyToken.type !== 'CODEBLOCK') {
-      throw new Error('Method body must be a code block (double quotes)');
+    if (!bodyToken || bodyToken.type !== 'ACTIONBLOCK') {
+      throw new Error('Method body must be an action block (double quotes)');
     }
 
     // Extract body content (remove double quotes)
-    const body = this.extractCodeBlockValue(bodyToken);
+    const body = this.extractActionBlockValue(bodyToken);
 
     const method: ObjaxMethodDefinition = {
       name: methodName,
@@ -905,9 +902,9 @@ export class LinearObjaxParser {
     return token.value.slice(1, -1); // Remove single quotes
   }
 
-  private extractCodeBlockValue(token: Token): string {
-    if (token.type !== 'CODEBLOCK') {
-      throw new Error(`Expected code block, got ${token.value}`);
+  private extractActionBlockValue(token: Token): string {
+    if (token.type !== 'ACTIONBLOCK') {
+      throw new Error(`Expected action block, got ${token.value}`);
     }
     return token.value.slice(1, -1); // Remove double quotes
   }
@@ -916,8 +913,8 @@ export class LinearObjaxParser {
     switch (token.type) {
       case 'STRING':
         return token.value.slice(1, -1); // Single quotes for strings
-      case 'CODEBLOCK':
-        return token.value.slice(1, -1); // Double quotes for code blocks
+      case 'ACTIONBLOCK':
+        return token.value.slice(1, -1); // Double quotes for action blocks
       case 'TRUE':
         return true;
       case 'FALSE':
@@ -1703,7 +1700,7 @@ export class LinearObjaxParser {
   }
 
   private isConditionalBlock(tokens: Token[]): boolean {
-    // "blockName is <field.value equal \"value\">"
+    // "blockName is \"field.value equal 'value'\""
     if (
       tokens.length >= 3 &&
       tokens[1].value === 'is' &&
@@ -1711,15 +1708,17 @@ export class LinearObjaxParser {
     ) {
       return true;
     }
+    
     return false;
   }
 
   private handleConditionalBlock(tokens: Token[]) {
     const blockName = tokens[0].value;
-    const conditionBlock = tokens[2].value; // <field.value equal "value">
+    // "blockName is \"field.value equal 'value'\""
+    const conditionBlock = tokens[2].value;
 
-    // Remove < and > from condition block
-    const conditionString = conditionBlock.slice(1, -1); // field.value equal "value"
+    // Remove double quotes from condition block
+    const conditionString = conditionBlock.slice(1, -1); // field.value equal 'value'
 
     const condition = this.parseCondition(conditionString);
 
@@ -1732,7 +1731,7 @@ export class LinearObjaxParser {
   }
 
   private isConditionalExecution(tokens: Token[]): boolean {
-    // "blockName thenDo with action <action>"
+    // "blockName thenDo with action \"action\""
     if (
       tokens.length >= 5 &&
       tokens[1].value === 'thenDo' &&
@@ -1742,15 +1741,91 @@ export class LinearObjaxParser {
     ) {
       return true;
     }
+    
+    // "\"condition\" thenDo with action \"action\""
+    if (
+      tokens.length >= 5 &&
+      tokens[0].type === 'ACTIONBLOCK' &&
+      tokens[1].value === 'thenDo' &&
+      tokens[2].value === 'with' &&
+      tokens[3].value === 'action' &&
+      tokens[4].type === 'ACTIONBLOCK'
+    ) {
+      return true;
+    }
+    
+    // "\"condition\" thenDo \"action\""
+    if (
+      tokens.length >= 3 &&
+      tokens[0].type === 'ACTIONBLOCK' &&
+      tokens[1].value === 'thenDo' &&
+      tokens[2].type === 'ACTIONBLOCK'
+    ) {
+      return true;
+    }
+    
     return false;
   }
 
   private handleConditionalExecution(tokens: Token[]) {
-    const blockName = tokens[0].value;
-    const actionBlock = tokens[4].value; // <action>
-
-    // Remove < and > from action block
-    const action = actionBlock.slice(1, -1);
+    let blockName: string;
+    let action: string;
+    
+    if (tokens[0].type === 'ACTIONBLOCK') {
+      // Check for "\"condition\" thenDo with action \"action\""
+      if (
+        tokens.length >= 5 &&
+        tokens[1].value === 'thenDo' &&
+        tokens[2].value === 'with' &&
+        tokens[3].value === 'action' &&
+        tokens[4].type === 'ACTIONBLOCK'
+      ) {
+        // "\"condition\" thenDo with action \"action\""
+        const conditionBlock = tokens[0].value;
+        const actionBlock = tokens[4].value;
+        
+        // Remove double quotes from blocks
+        const conditionString = conditionBlock.slice(1, -1);
+        action = actionBlock.slice(1, -1);
+        
+        // Create a temporary block name from the condition
+        blockName = `temp_condition_${Date.now()}`;
+        
+        // Create the conditional block if it doesn't exist
+        const condition = this.parseCondition(conditionString);
+        const conditionalBlock: ObjaxConditionalBlock = {
+          blockName,
+          condition,
+        };
+        this.conditionalBlocks.push(conditionalBlock);
+      } else {
+        // "\"condition\" thenDo \"action\""
+        const conditionBlock = tokens[0].value;
+        const actionBlock = tokens[2].value;
+        
+        // Remove double quotes from blocks
+        const conditionString = conditionBlock.slice(1, -1);
+        action = actionBlock.slice(1, -1);
+        
+        // Create a temporary block name from the condition
+        blockName = `temp_condition_${Date.now()}`;
+        
+        // Create the conditional block if it doesn't exist
+        const condition = this.parseCondition(conditionString);
+        const conditionalBlock: ObjaxConditionalBlock = {
+          blockName,
+          condition,
+        };
+        this.conditionalBlocks.push(conditionalBlock);
+      }
+    } else {
+      // "blockName thenDo with action \"action\""
+      blockName = tokens[0].value;
+      const actionBlock = tokens[4].value; // "action"
+      
+      // Remove double quotes from action block
+      action = actionBlock.slice(1, -1);
+    }
 
     const conditionalExecution: ObjaxConditionalExecution = {
       blockName,
@@ -1789,8 +1864,56 @@ export class LinearObjaxParser {
     this.conditionalOtherwiseExecutions.push(conditionalOtherwiseExecution);
   }
 
+  private isParameterizedCall(tokens: Token[]): boolean {
+    // "\"condition\" call with param 'value'"
+    if (
+      tokens.length >= 5 &&
+      tokens[0].type === 'ACTIONBLOCK' &&
+      tokens[1].type === 'CALL' &&
+      tokens[2].value === 'with' &&
+      tokens[4].type === 'STRING'
+    ) {
+      return true;
+    }
+    return false;
+  }
+
+  private handleParameterizedCall(tokens: Token[]) {
+    const conditionBlock = tokens[0].value; // "condition"
+    const paramName = tokens[3].value; // parameter name
+    const paramValue = tokens[4].value.slice(1, -1); // Remove quotes from 'value'
+    
+    // Remove double quotes from condition block
+    const conditionString = conditionBlock.slice(1, -1);
+    
+    // Replace parameter placeholder in condition with actual value
+    const resolvedCondition = conditionString.replace(`{${paramName}}`, `'${paramValue}'`);
+    
+    // Create a temporary block name
+    const blockName = `temp_param_call_${Date.now()}`;
+    
+    // Parse the resolved condition
+    const condition = this.parseCondition(resolvedCondition);
+    
+    // Create conditional block
+    const conditionalBlock: ObjaxConditionalBlock = {
+      blockName,
+      condition,
+    };
+    
+    this.conditionalBlocks.push(conditionalBlock);
+    
+    // Create immediate execution (evaluate the condition)
+    const conditionalExecution: ObjaxConditionalExecution = {
+      blockName,
+      action: 'evaluate', // Special action to just evaluate the condition
+    };
+    
+    this.conditionalExecutions.push(conditionalExecution);
+  }
+
   private parseCondition(conditionString: string): ObjaxCondition {
-    // Parse "field.value equal \"value\""
+    // Parse "field.value equal 'value'"
     const tokens = this.tokenize(conditionString);
 
     if (tokens.length >= 3) {

@@ -102,4 +102,38 @@ isError thenDo with action <message.value becomes "An error occurred">
     const messageInstance = executionResult.instances.find(i => i.name === 'message')
     expect(messageInstance?.properties.value).toBe('An error occurred')
   })
+
+  test('should handle direct conditional execution with "thenDo with action" syntax', () => {
+    const code = `
+input is a FieldMorph with value "valid"
+alert is a FieldMorph with value ""
+"input.value equal 'valid'" thenDo with action "alert.value becomes 'OK!'"
+`
+    const parseResult = parser.parse(code)
+    expect(parseResult.errors).toHaveLength(0)
+
+    const executionResult = executor.execute(parseResult)
+    expect(executionResult.errors).toHaveLength(0)
+
+    // Check that alert.value was updated to "OK!"
+    const alertInstance = executionResult.instances.find(i => i.name === 'alert')
+    expect(alertInstance?.properties.value).toBe('OK!')
+  })
+
+  test('should not execute conditional action when direct condition is false', () => {
+    const code = `
+input is a FieldMorph with value "invalid"
+alert is a FieldMorph with value ""
+"input.value equal 'valid'" thenDo with action "alert.value becomes 'OK!'"
+`
+    const parseResult = parser.parse(code)
+    expect(parseResult.errors).toHaveLength(0)
+
+    const executionResult = executor.execute(parseResult)
+    expect(executionResult.errors).toHaveLength(0)
+
+    // Check that alert.value remains empty because condition was false
+    const alertInstance = executionResult.instances.find(i => i.name === 'alert')
+    expect(alertInstance?.properties.value).toBe('')
+  })
 })

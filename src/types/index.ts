@@ -40,7 +40,7 @@ export interface ObjaxInstance {
   onChange?: string;
   onClick?: string;
   page: string;
-  type?: 'ButtonMorph' | 'FieldMorph' | 'ListMorph' | 'GroupMorph' | 'DatabaseMorph' | 'BoxMorph' | 'Timer';
+  type?: 'ButtonMorph' | 'FieldMorph' | 'ListMorph' | 'GroupMorph' | 'DatabaseMorph' | 'BoxMorph' | 'Timer' | 'DataMorph';
   value?: string | number | boolean;
   items?: string[];
   children?: string[];
@@ -84,6 +84,11 @@ export interface ObjaxInstance {
   boxShadow?: string;
   // Additional properties
   properties?: Record<string, any>;
+  // FieldMorph editable property
+  editable?: boolean;
+  // DataMorph properties
+  record?: Record<string, any>; // Single record data to display
+  displayFields?: string[]; // Fields to display for DataMorph
 }
 
 export interface ObjaxProject {

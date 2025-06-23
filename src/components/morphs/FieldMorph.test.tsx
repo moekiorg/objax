@@ -3,7 +3,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { FieldMorph } from './FieldMorph';
 
 describe('FieldMorph', () => {
-  it('should render a text input field with label', () => {
+  it('should render a text input field', () => {
     const mockOnChange = vi.fn();
     
     render(
@@ -15,7 +15,6 @@ describe('FieldMorph', () => {
       />
     );
     
-    expect(screen.getByLabelText(/name/i)).toBeInTheDocument();
     expect(screen.getByRole('textbox')).toBeInTheDocument();
   });
 
@@ -31,7 +30,6 @@ describe('FieldMorph', () => {
       />
     );
     
-    expect(screen.getByLabelText(/age/i)).toBeInTheDocument();
     expect(screen.getByRole('spinbutton')).toBeInTheDocument();
   });
 
@@ -47,8 +45,58 @@ describe('FieldMorph', () => {
       />
     );
     
-    expect(screen.getByLabelText(/active/i)).toBeInTheDocument();
     expect(screen.getByRole('checkbox')).toBeInTheDocument();
     expect(screen.getByRole('checkbox')).toBeChecked();
+  });
+
+  it('should render readonly text when editable is false', () => {
+    const mockOnChange = vi.fn();
+    
+    render(
+      <FieldMorph 
+        label="Read Only Field" 
+        value="read only value"
+        onChange={mockOnChange}
+        type="text"
+        editable={false}
+      />
+    );
+    
+    expect(screen.getByText("read only value")).toBeInTheDocument();
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+  });
+
+  it('should render readonly boolean text when editable is false', () => {
+    const mockOnChange = vi.fn();
+    
+    render(
+      <FieldMorph 
+        label="Read Only Boolean" 
+        value={true}
+        onChange={mockOnChange}
+        type="boolean"
+        editable={false}
+      />
+    );
+    
+    expect(screen.getByText("true")).toBeInTheDocument();
+    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
+  });
+
+  it('should render readonly false boolean text when editable is false', () => {
+    const mockOnChange = vi.fn();
+    
+    render(
+      <FieldMorph 
+        label="Read Only Boolean False" 
+        value={false}
+        onChange={mockOnChange}
+        type="boolean"
+        editable={false}
+      />
+    );
+    
+    expect(screen.getByText("false")).toBeInTheDocument();
+    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
   });
 });

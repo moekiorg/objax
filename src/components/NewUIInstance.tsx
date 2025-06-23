@@ -24,6 +24,15 @@ const UI_CLASSES: UIClassItem[] = [
     },
   },
   {
+    name: "FieldMorph (Boolean)",
+    icon: "☑️",
+    defaultProps: {
+      label: "チェックボックス",
+      value: false,
+      type: "boolean",
+    },
+  },
+  {
     name: "ListMorph",
     icon: "📋",
     defaultProps: {
@@ -129,7 +138,8 @@ export function NewUIInstance() {
             onDragStart={(e) => handleDragStart(e, uiClass)}
             data-testid={`ui-morph-${uiClass.name}`}
           >
-              <div className="new-ui-instance-item-name">{uiClass.name}</div>
+            <div className="new-ui-instance-item-icon">{uiClass.icon}</div>
+            <div className="new-ui-instance-item-name">{uiClass.name}</div>
           </div>
         ))}
       </div>

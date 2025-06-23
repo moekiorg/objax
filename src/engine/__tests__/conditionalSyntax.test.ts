@@ -9,7 +9,7 @@ describe('Conditional Syntax', () => {
   })
 
   test('should parse conditional block syntax', () => {
-    const code = `isInvalid is <password.value equal "Invalid">`
+    const code = `isInvalid is "password.value equal 'Invalid'"`
     const result = parser.parse(code)
 
     expect(result.errors).toHaveLength(0)
@@ -26,24 +26,24 @@ describe('Conditional Syntax', () => {
     expect(conditionalBlock.condition.right.value).toBe('Invalid')
   })
 
-  test('should parse conditional execution syntax', () => {
-    const code = `isInvalid thenDo with action <alert.value becomes "不正です">`
+  test('should parse direct conditional execution syntax', () => {
+    const code = `"input.value equal 'Invalid'" thenDo "alert.value becomes '不正です'"`
     const result = parser.parse(code)
 
     expect(result.errors).toHaveLength(0)
     expect(result.conditionalExecutions).toHaveLength(1)
 
     const conditionalExecution = result.conditionalExecutions[0]
-    expect(conditionalExecution.blockName).toBe('isInvalid')
-    expect(conditionalExecution.action).toBe('alert.value becomes "不正です"')
+    expect(conditionalExecution.blockName).toMatch(/^temp_condition_/)
+    expect(conditionalExecution.action).toBe("alert.value becomes '不正です'")
   })
 
   test('should parse complete conditional workflow', () => {
     const code = `
-password is a FieldMorph with value "Invalid"
-alert is a FieldMorph with value ""
-isInvalid is <password.value equal "Invalid">
-isInvalid thenDo with action <alert.value becomes "不正です">
+password is a FieldMorph with value 'Invalid'
+alert is a FieldMorph with value ''
+isInvalid is "password.value equal 'Invalid'"
+isInvalid thenDo with action "alert.value becomes '不正です'"
 `
     const result = parser.parse(code)
 
@@ -65,7 +65,7 @@ isInvalid thenDo with action <alert.value becomes "不正です">
     // Verify conditional execution
     const conditionalExecution = result.conditionalExecutions[0]
     expect(conditionalExecution.blockName).toBe('isInvalid')
-    expect(conditionalExecution.action).toBe('alert.value becomes "不正です"')
+    expect(conditionalExecution.action).toBe("alert.value becomes '不正です'")
   })
 
   test('should handle different comparison operators', () => {
@@ -77,7 +77,7 @@ isInvalid thenDo with action <alert.value becomes "不正です">
     ]
 
     testCases.forEach(({ operator, expected }) => {
-      const code = `myCondition is <value ${operator} 10>`
+      const code = `myCondition is "value ${operator} 10"`
       const result = parser.parse(code)
 
       expect(result.errors).toHaveLength(0)
@@ -87,7 +87,7 @@ isInvalid thenDo with action <alert.value becomes "不正です">
   })
 
   test('should handle numeric comparisons', () => {
-    const code = `ageCheck is <age greater 18>`
+    const code = `ageCheck is "age greater 18"`
     const result = parser.parse(code)
 
     expect(result.errors).toHaveLength(0)
@@ -99,5 +99,28 @@ isInvalid thenDo with action <alert.value becomes "不正です">
     expect(condition.operator).toBe('greater')
     expect(condition.right.type).toBe('literal')
     expect(condition.right.value).toBe(18)
+  })
+
+  test('should parse parameterized call syntax', () => {
+    const code = `"input.value equal {title}" call with title 'test'`
+    const result = parser.parse(code)
+
+    expect(result.errors).toHaveLength(0)
+    expect(result.conditionalBlocks).toHaveLength(1)
+    expect(result.conditionalExecutions).toHaveLength(1)
+
+    const conditionalBlock = result.conditionalBlocks[0]
+    expect(conditionalBlock.blockName).toMatch(/^temp_param_call_/)
+    expect(conditionalBlock.condition.type).toBe('comparison')
+    expect(conditionalBlock.condition.left.type).toBe('field')
+    expect(conditionalBlock.condition.left.instanceName).toBe('input')
+    expect(conditionalBlock.condition.left.fieldName).toBe('value')
+    expect(conditionalBlock.condition.operator).toBe('equal')
+    expect(conditionalBlock.condition.right.type).toBe('literal')
+    expect(conditionalBlock.condition.right.value).toBe('test')
+
+    const conditionalExecution = result.conditionalExecutions[0]
+    expect(conditionalExecution.blockName).toMatch(/^temp_param_call_/)
+    expect(conditionalExecution.action).toBe('evaluate')
   })
 })

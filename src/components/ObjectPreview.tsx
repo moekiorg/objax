@@ -77,7 +77,7 @@ export function ObjectPreview({ pageName }: ObjectPreviewProps) {
                 {instance.className === 'ButtonMorph' && (
                   <div className="object-preview-morph">
                     <ButtonMorph 
-                      label={instance.name} 
+                      label={instance.name || "ボタン"} 
                       onClick={() => handleButtonClick(instance)}
                     />
                   </div>
@@ -86,7 +86,7 @@ export function ObjectPreview({ pageName }: ObjectPreviewProps) {
                 {instance.className === 'FieldMorph' && (
                   <div className="object-preview-morph">
                     <FieldMorph 
-                      label={instance.name}
+                      label={instance.name || "フィールド"}
                       value={instance.value || ''}
                       onChange={(value) => updateInstance(instance.id, { value })}
                       type="text"

@@ -67,6 +67,7 @@ export function PageEditor({ pageName }: PageEditorProps) {
           page: pageName,
           order: Date.now(),
           // Include all properties from the parsed instance
+          properties: instance.properties,
           ...instance.properties
         });
       });

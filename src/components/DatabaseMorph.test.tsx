@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { describe, it, expect, vi } from 'vitest';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { DatabaseMorph } from './DatabaseMorph';
 import type { ObjaxInstance } from '../types';
 
@@ -47,7 +47,9 @@ describe('DatabaseMorph', () => {
       />
     );
     
-    expect(screen.getByText('Task List')).toBeInTheDocument();
+    // ビューモードボタンが表示されることを確認
+    expect(screen.getByText('テーブル')).toBeInTheDocument();
+    expect(screen.getByText('グリッド')).toBeInTheDocument();
   });
 
   it('displays data in table format', () => {
@@ -141,5 +143,104 @@ describe('DatabaseMorph', () => {
     
     expect(screen.getByText('テーブル')).toBeInTheDocument();
     expect(screen.getByText('グリッド')).toBeInTheDocument();
+  });
+
+  it('renders boolean values as checkboxes', () => {
+    const booleanDataInstances: ObjaxInstance[] = [
+      {
+        id: '4',
+        name: 'taskList',
+        className: 'TaskList',
+        page: 'test',
+        type: 'TaskList',
+        items: [
+          { title: 'Task 1', done: true },
+          { title: 'Task 2', done: false }
+        ]
+      }
+    ];
+
+    const booleanInstance: ObjaxInstance = {
+      id: '5',
+      name: 'taskView',
+      className: 'DatabaseMorph',
+      page: 'test',
+      type: 'DatabaseMorph',
+      dataSource: 'taskList',
+      viewMode: 'table',
+      fields: ['title', 'done'],
+      label: 'Task View'
+    };
+
+    render(
+      <DatabaseMorph 
+        instance={booleanInstance}
+        dataInstances={booleanDataInstances}
+      />
+    );
+    
+    // ヘッダーを確認
+    expect(screen.getByText('title')).toBeInTheDocument();
+    expect(screen.getByText('done')).toBeInTheDocument();
+    
+    // 文字列値を確認
+    expect(screen.getByText('Task 1')).toBeInTheDocument();
+    expect(screen.getByText('Task 2')).toBeInTheDocument();
+    
+    // チェックボックスを確認
+    const checkboxes = screen.getAllByRole('checkbox');
+    expect(checkboxes).toHaveLength(2);
+    expect(checkboxes[0]).toBeChecked(); // Task 1は完了
+    expect(checkboxes[1]).not.toBeChecked(); // Task 2は未完了
+  });
+
+  it('updates data when checkbox is clicked', () => {
+    const onUpdate = vi.fn();
+    const booleanDataInstances: ObjaxInstance[] = [
+      {
+        id: '4',
+        name: 'taskList',
+        className: 'TaskList',
+        page: 'test',
+        type: 'TaskList',
+        items: [
+          { title: 'Task 1', done: true },
+          { title: 'Task 2', done: false }
+        ]
+      }
+    ];
+
+    const booleanInstance: ObjaxInstance = {
+      id: '5',
+      name: 'taskView',
+      className: 'DatabaseMorph',
+      page: 'test',
+      type: 'DatabaseMorph',
+      dataSource: 'taskList',
+      viewMode: 'table',
+      fields: ['title', 'done'],
+      label: 'Task View'
+    };
+
+    render(
+      <DatabaseMorph 
+        instance={booleanInstance}
+        dataInstances={booleanDataInstances}
+        onUpdate={onUpdate}
+      />
+    );
+    
+    // 2番目のチェックボックス（Task 2のdone）をクリック
+    const checkboxes = screen.getAllByRole('checkbox');
+    fireEvent.click(checkboxes[1]);
+    
+    // データ更新が呼ばれることを確認
+    expect(onUpdate).toHaveBeenCalledWith('4', {
+      ...booleanDataInstances[0],
+      items: [
+        { title: 'Task 1', done: true },
+        { title: 'Task 2', done: true } // falseからtrueに変更
+      ]
+    });
   });
 });

@@ -41,6 +41,8 @@ export function GroupMorph({
     justifyContent,
     gap,
     padding,
+    backgroundColor: "#f5f5f5", // 灰色の背景
+    borderRadius: "4px",
   };
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -78,7 +80,6 @@ export function GroupMorph({
 
   return (
     <div className="group-morph-container">
-      {label && <div className="group-morph-label">{label}</div>}
       <div
         className={`group-morph-content ${isDragOver ? "drag-over" : ""}`}
         data-testid={

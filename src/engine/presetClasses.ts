@@ -83,12 +83,13 @@ export const presetUIClasses: ObjaxClass[] = [
   },
   {
     name: 'List',
-    code: 'List is a Class\nList has field "items"\nList has method "push" with "item" do self.items is self.items + [item]\nList has method "size" do return size of self.items',
+    code: 'List is a Class\nList has field "items"\nList has method "add" with "item" do self.items is self.items + [item]\nList has method "remove" with "item" do self.items is self.items - [item]\nList has method "size" do return size of self.items',
     fields: [
       { name: 'items', default: [] }
     ],
     methods: [
-      { name: 'push', code: 'self.items is self.items + [item]' },
+      { name: 'add', code: 'self.items is self.items + [item]' },
+      { name: 'remove', code: 'self.items is self.items - [item]' },
       { name: 'size', code: 'return size of self.items' }
     ]
   },
@@ -121,6 +122,16 @@ export const presetUIClasses: ObjaxClass[] = [
       { name: 'time', default: 1000 },
       { name: 'action', default: '' },
       { name: 'isRunning', default: false }
+    ],
+    methods: []
+  },
+  {
+    name: 'DataMorph',
+    code: 'DataMorph is a Class\nDataMorph has field "label"\nDataMorph has field "record"\nDataMorph has field "displayFields"',
+    fields: [
+      { name: 'label', default: 'データ' },
+      { name: 'record', default: {} },
+      { name: 'displayFields', default: [] }
     ],
     methods: []
   }

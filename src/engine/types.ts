@@ -46,6 +46,8 @@ export interface ObjaxInstanceDefinition {
   name: string;
   className: string;
   properties: Record<string, any>;
+  page?: string;
+  isOpen?: boolean;
 }
 
 export interface ObjaxMethodCall {

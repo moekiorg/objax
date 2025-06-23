@@ -266,16 +266,9 @@ export class ObjaxExecutor {
       }
     }
 
-    // Handle special "remove" method
-    if (methodCall.methodName === 'remove') {
-      // Set isOpen property to false for the instance
-      instance.properties.isOpen = false
-      return
-    }
-
     // Handle List class special methods
     if (instance.className === 'List') {
-      if (methodCall.methodName === 'push' && methodCall.parameters && methodCall.parameters.length > 0) {
+      if (methodCall.methodName === 'add' && methodCall.parameters && methodCall.parameters.length > 0) {
         // Add item to the list
         if (!Array.isArray(instance.properties.items)) {
           instance.properties.items = [];
@@ -283,10 +276,25 @@ export class ObjaxExecutor {
         instance.properties.items.push(methodCall.parameters[0]);
         return;
       }
+      if (methodCall.methodName === 'remove' && methodCall.parameters && methodCall.parameters.length > 0) {
+        // Remove item from the list
+        if (Array.isArray(instance.properties.items)) {
+          const itemToRemove = methodCall.parameters[0];
+          instance.properties.items = instance.properties.items.filter(item => item !== itemToRemove);
+        }
+        return;
+      }
       if (methodCall.methodName === 'size') {
         // Return the size of the list
         return Array.isArray(instance.properties.items) ? instance.properties.items.length : 0;
       }
+    }
+
+    // Handle special "remove" method (for UI objects)
+    if (methodCall.methodName === 'remove' && !methodCall.parameters) {
+      // Set isOpen property to false for the instance
+      instance.properties.isOpen = false
+      return
     }
 
     // Handle State class special methods
@@ -939,8 +947,26 @@ export class ObjaxExecutor {
       throw new Error(`Instance "${fieldAssignment.instanceName}" not found`)
     }
 
+    // Resolve field references in values
+    const resolvedValues = fieldAssignment.values.map(value => {
+      if (value && typeof value === 'object' && value.type === 'field_reference') {
+        // Resolve field reference
+        const targetInstance = instances.find(i => i.name === value.instanceName)
+        if (!targetInstance) {
+          throw new Error(`Instance "${value.instanceName}" not found for field reference`)
+        }
+        return targetInstance.properties[value.fieldName]
+      }
+      return value
+    })
+
     // Set the field value on the instance
-    instance.properties[fieldAssignment.fieldName] = fieldAssignment.values
+    // If it's a single value, unwrap it from the array
+    if (resolvedValues.length === 1) {
+      instance.properties[fieldAssignment.fieldName] = resolvedValues[0]
+    } else {
+      instance.properties[fieldAssignment.fieldName] = resolvedValues
+    }
   }
 
   private attachEventListener(
@@ -1409,10 +1435,15 @@ export class ObjaxExecutor {
     }
 
     // Find the action instance
-    const actionName = methodCall.parameters?.[0]
-    if (!actionName) {
+    const actionParam = methodCall.parameters?.[0]
+    if (!actionParam) {
       throw new Error('Range run requires an action parameter')
     }
+    
+    // Extract action name from parameter (handle both string and object forms)
+    const actionName = typeof actionParam === 'string' 
+      ? actionParam 
+      : (actionParam as any)?.name || actionParam
 
     const actionInstance = instances.find(i => i.name === actionName)
     if (!actionInstance || actionInstance.className !== 'Action') {
@@ -1433,18 +1464,74 @@ export class ObjaxExecutor {
       processedBody = processedBody.replace(/__CODEBLOCK_\d+__/g, size.toString())
       
       try {
-        // Parse and execute the processed action body
-        const parser = new LinearObjaxParser()
-        const actionResult = parser.parse(processedBody, instances)
+        // Split action body by ". " (period + space) to handle multiple statements
+        const statements = processedBody.split('. ').map(s => s.trim()).filter(s => s.length > 0)
         
-        // Execute becomes assignments
-        for (const becomesAssignment of actionResult.becomesAssignments || []) {
-          this.executeBecomesAssignment(becomesAssignment, instances)
-        }
+        // Parse and execute each statement separately
+        // Track variable name substitutions within this iteration
+        const nameSubstitutions: Map<string, string> = new Map()
         
-        // Execute other operations if needed
-        for (const methodCall of actionResult.methodCalls || []) {
-          this.executeMethodCall(methodCall, instances, [])
+        for (const statement of statements) {
+          const parser = new LinearObjaxParser()
+          // Don't pass existing instances to parser to allow duplicates
+          const actionResult = parser.parse(statement)
+        
+          // Execute becomes assignments with name substitution
+          for (const becomesAssignment of actionResult.becomesAssignments || []) {
+            // Apply name substitution to becomes assignment target
+            let substitutedAssignment = becomesAssignment
+            if (becomesAssignment.target.type === 'field' && becomesAssignment.target.instanceName) {
+              const substitutedInstanceName = nameSubstitutions.get(becomesAssignment.target.instanceName) || becomesAssignment.target.instanceName
+              if (substitutedInstanceName !== becomesAssignment.target.instanceName) {
+                substitutedAssignment = {
+                  ...becomesAssignment,
+                  target: {
+                    ...becomesAssignment.target,
+                    instanceName: substitutedInstanceName
+                  }
+                }
+              }
+            }
+            this.executeBecomesAssignment(substitutedAssignment, instances)
+          }
+          
+          // Add any new instances created in the action and track name changes
+          for (const newInstance of actionResult.instances || []) {
+            const originalName = newInstance.name
+            
+            // Generate unique name if instance already exists
+            let uniqueName = newInstance.name
+            let counter = 0
+            while (instances.find(existing => existing.name === uniqueName)) {
+              counter++
+              uniqueName = `${newInstance.name}_${counter}`
+            }
+            
+            // Track name substitution if name was changed
+            if (uniqueName !== originalName) {
+              nameSubstitutions.set(originalName, uniqueName)
+              newInstance.name = uniqueName
+            }
+            
+            // Generate ID if not present
+            if (!newInstance.properties.id) {
+              newInstance.properties.id = `${newInstance.name}_${Date.now()}_${Math.floor(Math.random() * 1000)}`
+            }
+            // Apply default values from class definitions
+            this.applyDefaultValues(newInstance, [...actionResult.classes])
+            instances.push(newInstance)
+          }
+          
+          // Execute method calls with name substitution
+          for (const methodCall of actionResult.methodCalls || []) {
+            // Apply name substitution to method call target
+            const substitutedInstanceName = nameSubstitutions.get(methodCall.instanceName) || methodCall.instanceName
+            const substitutedMethodCall = {
+              ...methodCall,
+              instanceName: substitutedInstanceName
+            }
+            this.executeMethodCall(substitutedMethodCall, instances, [])
+          }
         }
       } catch (error) {
         throw new Error(`Error executing range action at size ${size}: ${error instanceof Error ? error.message : String(error)}`)

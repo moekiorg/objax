@@ -599,6 +599,8 @@ export function CanvasView({ pageName }: CanvasViewProps) {
       target.classList.contains("canvas-page") ||
       target.closest(".canvas-page-content");
 
+    console.log('handleCanvasDrop called:', { isCanvasArea, targetClasses: target.classList });
+
     // Handle drop if it's on canvas area and not handled by other components
     if (isCanvasArea) {
       e.preventDefault();
@@ -606,7 +608,7 @@ export function CanvasView({ pageName }: CanvasViewProps) {
 
       try {
         const data = JSON.parse(e.dataTransfer.getData("application/json"));
-        // Process canvas drop data
+        console.log('Drop data parsed:', data);
 
         if (data.type === "new-ui-instance") {
           // Create new instance from dropped UI class
@@ -617,9 +619,11 @@ export function CanvasView({ pageName }: CanvasViewProps) {
             page: pageName,
             order: instances.filter((i) => i.page === pageName && !i.parentId)
               .length,
+            isOpen: true, // Add this to make the instance visible
             ...data.defaultProps,
           };
 
+          console.log('Creating new instance:', newInstance);
           // Creating new instance on canvas
           addInstance(newInstance);
         } else if (data.type === "canvas-object") {
@@ -778,10 +782,7 @@ export function CanvasView({ pageName }: CanvasViewProps) {
                         "BoxMorph",
                         "DataMorph",
                       ];
-                      if (uiMorphs.includes(instance.className)) {
-                        // UI Morphs are shown by default, but can be hidden if isOpen is explicitly false
-                        return instance.isOpen !== false;
-                      }
+                      // All instances (UI Morphs and custom classes) require explicit isOpen === true to be shown
                       return instance.isOpen === true;
                     })
                     .sort((a, b) => (a.order || 0) - (b.order || 0));
@@ -825,18 +826,14 @@ export function CanvasView({ pageName }: CanvasViewProps) {
                         "DataMorph",
                       ];
                       const isUIMorph = uiMorphs.includes(instance.className);
-                      const isOpenCustomClass = instance.isOpen === true;
+                      const isOpen = instance.isOpen === true;
 
                       console.log(
                         `Instance ${instance.name} (${instance.className}): isUIMorph=${isUIMorph}, isOpen=${instance.isOpen}, parentId=${instance.parentId}`
                       );
 
-                      if (isUIMorph) {
-                        // UI Morphs are shown by default, but can be hidden if isOpen is explicitly false
-                        return instance.isOpen !== false;
-                      }
-                      // For custom classes, only show if isOpen is true
-                      return isOpenCustomClass;
+                      // All instances (UI Morphs and custom classes) require explicit isOpen === true to be shown
+                      return isOpen;
                     })
                     .sort((a, b) => (a.order || 0) - (b.order || 0));
 
@@ -1136,6 +1133,10 @@ export function CanvasView({ pageName }: CanvasViewProps) {
           instance.name,
           "value:",
           instance.value,
+          "typeof value:",
+          typeof instance.value,
+          "instance.type:",
+          instance.type,
           "label:",
           instance.label
         );
@@ -1143,10 +1144,21 @@ export function CanvasView({ pageName }: CanvasViewProps) {
           <div ref={handleRef} style={sizeStyle}>
             <FieldMorph
               label={instance.label || instance.name || "フィールド"}
-              value={instance.value || ""}
-              type={instance.type || "text"}
+              value={instance.value !== undefined ? instance.value : ""}
+              type={
+                instance.type || 
+                (typeof instance.value === 'boolean' ? 'boolean' : 
+                 typeof instance.value === 'number' ? 'number' : 'text')
+              }
               editable={instance.editable !== false} // Default to true if not specified
               onChange={(value) => {
+                // デバッグ用のログ
+                console.log('FieldMorph onChange:', { 
+                  instanceId: instance.id,
+                  oldValue: instance.value, 
+                  newValue: value, 
+                  valueType: typeof value 
+                });
                 updateInstance(instance.id, { value });
               }}
             />
@@ -1165,9 +1177,22 @@ export function CanvasView({ pageName }: CanvasViewProps) {
           </div>
         );
       case "GroupMorph": {
-        // Get child instances
+        // Get child instances - check both children array and properties.children
         const childInstances = instances
-          .filter((child) => instance.children?.includes(child.id))
+          .filter((child) => {
+            // Check if child is in the children array by ID
+            if (instance.children?.includes(child.id)) return true;
+            
+            // Check if child is in properties.children array by name
+            if (instance.properties?.children) {
+              return instance.properties.children.some((childRef: any) => 
+                (typeof childRef === 'object' && childRef.name === child.name) ||
+                (typeof childRef === 'string' && childRef === child.name)
+              );
+            }
+            
+            return false;
+          })
           .sort((a, b) => (a.order || 0) - (b.order || 0));
 
         return (
@@ -1210,11 +1235,9 @@ export function CanvasView({ pageName }: CanvasViewProps) {
                 }
               }}
             >
-              {childInstances.map((childInstance) => (
-                <div key={childInstance.id} style={{ display: "inline-block" }}>
-                  {renderCanvasObject(childInstance)}
-                </div>
-              ))}
+              {childInstances.map((childInstance) => 
+                renderCanvasObject(childInstance)
+              )}
             </GroupMorph>
           </div>
         );

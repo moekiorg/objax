@@ -134,6 +134,7 @@ export function WindowPlayground({ pageName }: WindowPlaygroundProps) {
           const updateData = {
             ...resultInstance.properties,
             // Ensure we preserve the instance structure
+            properties: resultInstance.properties,
             className: resultInstance.className,
             name: resultInstance.name,
           };
@@ -151,6 +152,7 @@ export function WindowPlayground({ pageName }: WindowPlaygroundProps) {
             page: pageName,
             order: Date.now(), // Use timestamp for initial order
             // Include all properties from the parsed instance
+            properties: resultInstance.properties,
             ...resultInstance.properties,
           };
           console.log('Adding new instance:', newInstance);

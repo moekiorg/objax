@@ -30,7 +30,6 @@ grow is a Action with do "box.width becomes {size}"
 sizes run grow`
 
     const parseResult = parser.parse(code)
-
     const result = executor.execute(parseResult, project.classes)
 
     // box.width should be set to the last value (3) after range execution
