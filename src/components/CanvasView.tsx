@@ -30,6 +30,7 @@ import { ListMorph } from "./morphs/ListMorph";
 import { GroupMorph } from "./morphs/GroupMorph";
 import { BoxMorph } from "./morphs/BoxMorph";
 import { DatabaseMorph } from "./DatabaseMorph";
+import { DataMorph } from "./morphs/DataMorph";
 import { Halo } from "./Halo";
 import { Inspector } from "./Inspector";
 import { WindowMessage } from "./WindowMessage";
@@ -166,18 +167,18 @@ export function CanvasView({ pageName }: CanvasViewProps) {
       setShowContextMenu(false);
       console.log('Opening Halo for', instance.name);
     } else {
-      // Handle normal click - execute event listeners for ButtonMorph
+      // Handle normal click - execute event listeners for ButtonMorph and BoxMorph
       console.log('Normal click detected for', instance.name);
-      if (instance.className === "ButtonMorph") {
-        console.log('Executing button click for ButtonMorph:', instance.name);
-        executeButtonClick(instance);
+      if (instance.className === "ButtonMorph" || instance.className === "BoxMorph") {
+        console.log('Executing button click for', instance.className, ':', instance.name);
+        executeClickableAction(instance);
       } else {
-        console.log('Not a ButtonMorph, skipping execution');
+        console.log('Not a clickable morph, skipping execution');
       }
     }
   };
 
-  const executeButtonClick = useCallback((instance: any) => {
+  const executeClickableAction = useCallback((instance: any) => {
     // Check for event listeners first (new system)
     if (instance.eventListeners && instance.eventListeners.length > 0) {
       const clickListener = instance.eventListeners.find(
@@ -343,6 +344,7 @@ export function CanvasView({ pageName }: CanvasViewProps) {
           if (existingInstance) {
             updateInstance(existingInstance.id, {
               ...resultInstance.properties,
+              properties: resultInstance.properties,
               className: resultInstance.className,
               name: resultInstance.name,
             });
@@ -404,6 +406,7 @@ export function CanvasView({ pageName }: CanvasViewProps) {
           if (existingInstance) {
             updateInstance(existingInstance.id, {
               ...resultInstance.properties,
+              properties: resultInstance.properties,
               className: resultInstance.className,
               name: resultInstance.name,
             });
@@ -416,6 +419,7 @@ export function CanvasView({ pageName }: CanvasViewProps) {
               type: resultInstance.className as any,
               page: pageName,
               order: instances.filter((i) => i.page === pageName).length,
+              properties: resultInstance.properties,
               ...resultInstance.properties,
             });
           }
@@ -771,6 +775,8 @@ export function CanvasView({ pageName }: CanvasViewProps) {
                         "ListMorph",
                         "GroupMorph",
                         "DatabaseMorph",
+                        "BoxMorph",
+                        "DataMorph",
                       ];
                       if (uiMorphs.includes(instance.className)) {
                         // UI Morphs are shown by default, but can be hidden if isOpen is explicitly false
@@ -816,6 +822,7 @@ export function CanvasView({ pageName }: CanvasViewProps) {
                         "GroupMorph",
                         "DatabaseMorph",
                         "BoxMorph",
+                        "DataMorph",
                       ];
                       const isUIMorph = uiMorphs.includes(instance.className);
                       const isOpenCustomClass = instance.isOpen === true;
@@ -1118,7 +1125,7 @@ export function CanvasView({ pageName }: CanvasViewProps) {
         return (
           <div ref={handleRef} style={sizeStyle}>
             <ButtonMorph
-              label={instance.label || instance.name}
+              label={instance.label || instance.name || "ボタン"}
               // Don't override onClick - let handleObjectClick handle it
             />
           </div>
@@ -1135,9 +1142,10 @@ export function CanvasView({ pageName }: CanvasViewProps) {
         return (
           <div ref={handleRef} style={sizeStyle}>
             <FieldMorph
-              label={instance.label || instance.name}
+              label={instance.label || instance.name || "フィールド"}
               value={instance.value || ""}
               type={instance.type || "text"}
+              editable={instance.editable !== false} // Default to true if not specified
               onChange={(value) => {
                 updateInstance(instance.id, { value });
               }}
@@ -1225,6 +1233,16 @@ export function CanvasView({ pageName }: CanvasViewProps) {
         return (
           <div ref={handleRef}>
             <BoxMorph instance={instance} />
+          </div>
+        );
+      case "DataMorph":
+        return (
+          <div ref={handleRef} style={sizeStyle}>
+            <DataMorph
+              instance={instance}
+              dataInstances={instances}
+              onUpdate={(updates) => updateInstance(instance.id, updates)}
+            />
           </div>
         );
       case "TaskList":

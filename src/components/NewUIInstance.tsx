@@ -76,6 +76,21 @@ const UI_CLASSES: UIClassItem[] = [
       position: "static",
       opacity: "1",
       boxShadow: "none",
+      onClick: "",
+    },
+  },
+  {
+    name: "DataMorph",
+    icon: "📊",
+    defaultProps: {
+      label: "新しいデータ",
+      record: {
+        name: "サンプル",
+        age: 25,
+        active: true
+      },
+      displayFields: ["name", "age", "active"],
+      width: "250px",
     },
   },
 ];

@@ -126,7 +126,7 @@ export function Inspector({
               />
             </div>
 
-            {instance.className === "ButtonMorph" && (
+            {((instance as any).className === "ButtonMorph" || (instance as any).className === "BoxMorph") && (
               <div className="inspector-field">
                 <label className="inspector-label">OnClick (Objaxコード)</label>
                 <textarea

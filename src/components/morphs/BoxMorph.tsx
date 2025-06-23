@@ -2,9 +2,10 @@ import type { ObjaxInstance } from '../../types';
 
 interface BoxMorphProps {
   instance: ObjaxInstance;
+  onClick?: () => void;
 }
 
-export function BoxMorph({ instance }: BoxMorphProps) {
+export function BoxMorph({ instance, onClick }: BoxMorphProps) {
   // width/height に px を追加する関数
   const addPxUnit = (value: string | number | undefined, defaultValue: string): string => {
     if (!value) return defaultValue;
@@ -33,12 +34,14 @@ export function BoxMorph({ instance }: BoxMorphProps) {
     boxShadow: instance.boxShadow || 'none',
     minWidth: '50px',
     minHeight: '20px',
+    cursor: onClick ? 'pointer' : 'default',
   };
 
   return (
     <div 
       className="box-morph"
       style={style}
+      onClick={onClick}
     >
       {instance.label || instance.name}
     </div>
