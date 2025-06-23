@@ -607,14 +607,26 @@ export class LinearObjaxParser {
   private handleDefineFieldSyntax(tokens: Token[]) {
     if (!this.currentClass) return;
 
-    // "ClassName defineField "fieldName" [has default value]"
-    const fieldName = this.extractStringValue(tokens[2]);
-    let defaultValue: any;
+    // "ClassName defineField with name "fieldName" [and default value]"
+    const withIndex = tokens.findIndex(t => t.value === 'with');
+    const nameIndex = tokens.findIndex(t => t.value === 'name');
+    
+    if (withIndex === -1 || nameIndex === -1 || nameIndex !== withIndex + 1) {
+      throw new Error('Invalid defineField syntax: expected "with name"');
+    }
+
+    // Extract field name
+    const fieldNameToken = tokens[nameIndex + 1];
+    if (!fieldNameToken || fieldNameToken.type !== 'STRING') {
+      throw new Error('Invalid defineField syntax: field name must be a string');
+    }
+    const fieldName = this.extractStringValue(fieldNameToken);
 
     // Check for default value
-    const hasIndex = tokens.findIndex((t, i) => i > 2 && t.value === 'has');
-    if (hasIndex !== -1 && tokens[hasIndex + 1]?.value === 'default') {
-      const defaultToken = tokens[hasIndex + 2];
+    let defaultValue: any;
+    const andIndex = tokens.findIndex((t, i) => i > nameIndex + 1 && t.value === 'and');
+    if (andIndex !== -1 && tokens[andIndex + 1]?.value === 'default') {
+      const defaultToken = tokens[andIndex + 2];
       if (defaultToken) {
         defaultValue = this.parseValue(defaultToken);
       }
@@ -849,7 +861,7 @@ export class LinearObjaxParser {
     }
 
     // Allow common method names that might have specific token types
-    const allowedMethodTokenTypes = ['IDENTIFIER', 'REPEAT', 'DOALL'];
+    const allowedMethodTokenTypes = ['IDENTIFIER', 'REPEAT', 'DOALL', 'THENDO', 'OTHERWISEDO'];
     if (!allowedMethodTokenTypes.includes(secondToken.type)) {
       return false;
     }

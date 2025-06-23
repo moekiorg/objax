@@ -8,7 +8,7 @@ interface WindowPlaygroundProps {
 }
 
 export function WindowPlayground({ pageName }: WindowPlaygroundProps) {
-  const { addInstance, addClass, updateInstance, classes, instances, setCurrentPage, getObjaxEngine } =
+  const { addInstance, addClass, updateClass, updateInstance, classes, instances, setCurrentPage, getObjaxEngine } =
     useObjaxStore();
   const [code, setCode] = useState("");
   const [output, setOutput] = useState("");
@@ -32,10 +32,34 @@ export function WindowPlayground({ pageName }: WindowPlaygroundProps) {
       const instanceDefinitions = pageInstances.map(convertToInstanceDefinition);
       
       // Execute using the persistent engine
+      console.log('WindowPlayground: About to execute code:', code);
+      console.log('WindowPlayground: Class definitions passed to engine:', classDefinitions.length);
       const result = engine.execute(code, classDefinitions, instanceDefinitions);
+      console.log('WindowPlayground: Parse errors:', result.errors);
 
+      // Filter out preset classes from user classes to get actual user-defined classes
+      const presetClassNames = presetUIClasses.map(c => c.name);
+      const userDefinedClasses = classes.filter(c => !presetClassNames.includes(c.name));
+      
       // Add only new classes to store (skip existing ones)
-      const newClasses = result.classes.slice(classes.length);
+      // result.classes contains: [presetUIClasses] + [existingUserClasses] + [newClasses]
+      const newClasses = result.classes.slice(presetUIClasses.length + userDefinedClasses.length);
+      console.log('WindowPlayground: Total result classes:', result.classes.length);
+      console.log('WindowPlayground: Preset UI classes:', presetUIClasses.length);
+      console.log('WindowPlayground: All stored classes:', classes.length);
+      console.log('WindowPlayground: All stored class names:', classes.map(c => c.name));
+      console.log('WindowPlayground: User-defined classes:', userDefinedClasses.length);
+      console.log('WindowPlayground: User-defined class names:', userDefinedClasses.map(c => c.name));
+      console.log('WindowPlayground: New classes found:', newClasses.length);
+      console.log('WindowPlayground: New classes:', newClasses.map(c => c.name));
+      
+      // Debug: Check if Task class was updated
+      const taskClass = result.classes.find(c => c.name === 'Task');
+      if (taskClass) {
+        console.log('WindowPlayground: Task class fields:', taskClass.fields.map(f => `${f.name} (default: ${f.defaultValue})`));
+      }
+      
+      // Add new classes
       newClasses.forEach((cls) => {
         // Convert ObjaxClassDefinition to ObjaxClass format
         const objaxClass = {
@@ -55,6 +79,32 @@ export function WindowPlayground({ pageName }: WindowPlaygroundProps) {
         };
 
         addClass(objaxClass);
+      });
+
+      // Update existing classes that might have been modified
+      result.classes.slice(presetUIClasses.length).forEach((cls) => {
+        const existingClass = classes.find(c => c.name === cls.name);
+        if (existingClass) {
+          // Convert and update existing class
+          const updatedClass = {
+            name: cls.name,
+            code: "", // Not used in new format
+            fields: cls.fields.map((field) => ({
+              name: field.name,
+              default: field.defaultValue,
+            })),
+            methods: cls.methods.map((method) => {
+              const methodCode = method.body || "";
+              return {
+                name: method.name,
+                code: methodCode,
+              };
+            }),
+          };
+          
+          // Replace the existing class
+          updateClass(cls.name, updatedClass);
+        }
       });
 
       // Handle page navigations

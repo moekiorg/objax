@@ -13,10 +13,15 @@ export class ObjaxEngine {
   }
 
   execute(code: string, existingClasses: ObjaxClassDefinition[] = [], existingInstances: ObjaxInstanceDefinition[] = []): ObjaxExecutionResult {
+    console.log('ObjaxEngine: Executing code with', existingClasses.length, 'existing classes');
     const parseResult = this.parser.parse(code, existingInstances);
+    console.log('ObjaxEngine: Parse result classes:', parseResult.classes.length);
+    console.log('ObjaxEngine: Parse result class names:', parseResult.classes.map(c => c.name));
     
     // Merge classes, handling duplicates by combining fields and methods
     const mergedClasses = this.mergeClasses(existingClasses, parseResult.classes);
+    console.log('ObjaxEngine: Merged classes:', mergedClasses.length);
+    console.log('ObjaxEngine: Merged class names:', mergedClasses.map(c => c.name));
     
     const mergedResult = {
       ...parseResult,

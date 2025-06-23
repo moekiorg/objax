@@ -16,7 +16,7 @@ describe('LinearObjaxParser', () => {
 
   it('should create a field with defineField syntax', () => {
     const parser = new LinearObjaxParser();
-    const code = 'Task is a Class\nTask defineField "title"';
+    const code = 'Task is a Class\nTask defineField with name "title"';
 
     const result = parser.parse(code);
     expect(result.errors).toHaveLength(0);
@@ -27,7 +27,7 @@ describe('LinearObjaxParser', () => {
 
   it('should create a field with defineField syntax and default value', () => {
     const parser = new LinearObjaxParser();
-    const code = 'Task is a Class\nTask defineField "done" has default false';
+    const code = 'Task is a Class\nTask defineField with name "done" and default false';
 
     const result = parser.parse(code);
     expect(result.errors).toHaveLength(0);

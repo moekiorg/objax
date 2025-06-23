@@ -6,8 +6,8 @@ describe('Define Field and Method Syntax', () => {
   it('should parse and execute defineField syntax', () => {
     const code = `
 Task is a Class
-Task defineField "title"
-Task defineField "done" has default false
+Task defineField with name "title"
+Task defineField with name "done" and default false
 myTask is a new Task
     `
     
@@ -30,8 +30,8 @@ myTask is a new Task
   it('should parse and execute defineMethod syntax', () => {
     const code = `
 Task is a Class
-Task defineField "title"
-Task defineField "done" has default false
+Task defineField with name "title"
+Task defineField with name "done" and default false
 Task defineMethod "complete" do {self.done is true}
 Task defineMethod "setTitle" with "newTitle" do {self.title is newTitle}
 myTask is a new Task
@@ -61,7 +61,7 @@ myTask setTitle "Test Task"
     const code = `
 Task is a Class
 Task has field "title"
-Task defineField "done" has default false
+Task defineField with name "done" and default false
 Task has method "markIncomplete" do self.done is false
 Task defineMethod "complete" do {self.done is true}
 myTask is a new Task

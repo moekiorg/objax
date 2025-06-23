@@ -64,6 +64,15 @@ export class ObjaxExecutor {
       }
     }
 
+    // Execute becomes assignments FIRST (before method calls)
+    for (const becomesAssignment of result.becomesAssignments || []) {
+      try {
+        this.executeBecomesAssignment(becomesAssignment, instances)
+      } catch (error) {
+        errors.push(`Error executing becomes assignment: ${error instanceof Error ? error.message : String(error)}`)
+      }
+    }
+
     // Execute method calls
     for (const methodCall of result.methodCalls) {
       try {
@@ -118,14 +127,6 @@ export class ObjaxExecutor {
       }
     }
 
-    // Execute becomes assignments
-    for (const becomesAssignment of result.becomesAssignments || []) {
-      try {
-        this.executeBecomesAssignment(becomesAssignment, instances)
-      } catch (error) {
-        errors.push(`Error executing becomes assignment: ${error instanceof Error ? error.message : String(error)}`)
-      }
-    }
 
     // Execute block calls
     for (const blockCall of result.blockCalls || []) {
@@ -243,6 +244,23 @@ export class ObjaxExecutor {
       // Set isOpen property to true for the instance
       instance.properties.isOpen = true
       return
+    }
+
+    // Handle Range "run" method
+    if (instance.className === 'Range' && methodCall.methodName === 'run') {
+      this.executeRangeRun(instance, methodCall, instances)
+      return
+    }
+
+    // Handle Judgement "thenDo" and "otherwiseDo" methods
+    if (instance.className === 'Judgement') {
+      if (methodCall.methodName === 'thenDo') {
+        this.executeJudgementThenDo(instance, methodCall, instances)
+        return
+      } else if (methodCall.methodName === 'otherwiseDo') {
+        this.executeJudgementOtherwiseDo(instance, methodCall, instances)
+        return
+      }
     }
 
     // Handle special "remove" method
@@ -1127,5 +1145,180 @@ export class ObjaxExecutor {
     }
     
     throw new Error(`Unknown condition type: ${condition.type}`)
+  }
+
+  private executeRangeRun(
+    rangeInstance: ObjaxInstanceDefinition,
+    methodCall: ObjaxMethodCall,
+    instances: ObjaxInstanceDefinition[]
+  ) {
+    // Get the range start and end values
+    const start = rangeInstance.properties.start as number
+    const end = rangeInstance.properties.end as number
+    
+    if (typeof start !== 'number' || typeof end !== 'number') {
+      throw new Error('Range start and end must be numbers')
+    }
+
+    // Find the action instance
+    const actionName = methodCall.parameters?.[0]
+    if (!actionName) {
+      throw new Error('Range run requires an action parameter')
+    }
+
+    const actionInstance = instances.find(i => i.name === actionName)
+    if (!actionInstance || actionInstance.className !== 'Action') {
+      throw new Error(`Action instance "${actionName}" not found`)
+    }
+
+    // Get the action's do block
+    const actionBody = actionInstance.properties.do as string
+    if (!actionBody) {
+      throw new Error(`Action "${actionName}" has no do block`)
+    }
+
+    // Execute the action for each value in the range
+    for (let size = start; size <= end; size++) {
+      // Replace {size} placeholder with actual size value
+      // Handle both {size} and __CODEBLOCK_N__ patterns
+      let processedBody = actionBody.replace(/\{size\}/g, size.toString())
+      processedBody = processedBody.replace(/__CODEBLOCK_\d+__/g, size.toString())
+      
+      try {
+        // Parse and execute the processed action body
+        const parser = new LinearObjaxParser()
+        const actionResult = parser.parse(processedBody, instances)
+        
+        // Execute becomes assignments
+        for (const becomesAssignment of actionResult.becomesAssignments || []) {
+          this.executeBecomesAssignment(becomesAssignment, instances)
+        }
+        
+        // Execute other operations if needed
+        for (const methodCall of actionResult.methodCalls || []) {
+          this.executeMethodCall(methodCall, instances, [])
+        }
+      } catch (error) {
+        throw new Error(`Error executing range action at size ${size}: ${error instanceof Error ? error.message : String(error)}`)
+      }
+    }
+  }
+
+  private executeJudgementThenDo(
+    judgementInstance: ObjaxInstanceDefinition,
+    methodCall: ObjaxMethodCall,
+    instances: ObjaxInstanceDefinition[]
+  ) {
+    // Evaluate the judgement condition
+    const conditionResult = this.evaluateJudgementCondition(judgementInstance, instances)
+    
+    // If condition is true, execute the action
+    if (conditionResult) {
+      this.executeJudgementAction(methodCall, instances)
+    }
+  }
+
+  private executeJudgementOtherwiseDo(
+    judgementInstance: ObjaxInstanceDefinition,
+    methodCall: ObjaxMethodCall,
+    instances: ObjaxInstanceDefinition[]
+  ) {
+    // Evaluate the judgement condition
+    const conditionResult = this.evaluateJudgementCondition(judgementInstance, instances)
+    
+    // If condition is false, execute the action
+    if (!conditionResult) {
+      this.executeJudgementAction(methodCall, instances)
+    }
+  }
+
+  private evaluateJudgementCondition(
+    judgementInstance: ObjaxInstanceDefinition,
+    instances: ObjaxInstanceDefinition[]
+  ): boolean {
+    const conditionString = judgementInstance.properties.boolean as string
+    if (!conditionString) {
+      throw new Error(`Judgement "${judgementInstance.name}" has no boolean condition`)
+    }
+
+    // Parse condition string "task.state equal 'done'"
+    const tokens = conditionString.split(' ')
+    if (tokens.length < 3) {
+      throw new Error(`Invalid condition format: ${conditionString}`)
+    }
+
+    // Extract field reference (e.g., "task.state")
+    const fieldRef = tokens[0]
+    const operator = tokens[1]
+    const expectedValue = tokens.slice(2).join(' ').replace(/['"]/g, '') // Remove quotes
+
+    // Parse field reference
+    const [instanceName, fieldName] = fieldRef.split('.')
+    if (!instanceName || !fieldName) {
+      throw new Error(`Invalid field reference: ${fieldRef}`)
+    }
+
+    // Find the instance
+    const targetInstance = instances.find(i => i.name === instanceName)
+    if (!targetInstance) {
+      throw new Error(`Instance "${instanceName}" not found`)
+    }
+
+    // Get the actual value
+    const actualValue = targetInstance.properties[fieldName]
+
+    // Evaluate condition
+    switch (operator) {
+      case 'equal':
+        return actualValue === expectedValue
+      case 'not_equal':
+        return actualValue !== expectedValue
+      case 'greater':
+        return actualValue > expectedValue
+      case 'less':
+        return actualValue < expectedValue
+      default:
+        throw new Error(`Unknown operator: ${operator}`)
+    }
+  }
+
+  private executeJudgementAction(
+    methodCall: ObjaxMethodCall,
+    instances: ObjaxInstanceDefinition[]
+  ) {
+    const actionName = methodCall.keywordParameters?.action
+    if (!actionName) {
+      throw new Error('Judgement method requires action parameter')
+    }
+
+    // Find the action instance
+    const actionInstance = instances.find(i => i.name === actionName)
+    if (!actionInstance || actionInstance.className !== 'Action') {
+      throw new Error(`Action instance "${actionName}" not found`)
+    }
+
+    // Get the action's do block
+    const actionBody = actionInstance.properties.do as string
+    if (!actionBody) {
+      throw new Error(`Action "${actionName}" has no do block`)
+    }
+
+    try {
+      // Parse and execute the action body
+      const parser = new LinearObjaxParser()
+      const actionResult = parser.parse(actionBody, instances)
+      
+      // Execute becomes assignments
+      for (const becomesAssignment of actionResult.becomesAssignments || []) {
+        this.executeBecomesAssignment(becomesAssignment, instances)
+      }
+      
+      // Execute other operations if needed
+      for (const methodCall of actionResult.methodCalls || []) {
+        this.executeMethodCall(methodCall, instances, [])
+      }
+    } catch (error) {
+      throw new Error(`Error executing judgement action: ${error instanceof Error ? error.message : String(error)}`)
+    }
   }
 }
