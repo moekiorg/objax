@@ -6,6 +6,7 @@ import { ListMorph } from './morphs/ListMorph';
 import { GroupMorph } from './morphs/GroupMorph';
 import { DatabaseMorph } from './DatabaseMorph';
 import { Inspector } from './Inspector';
+import { executeEventAction } from '../utils/executeEventAction';
 import type { ObjaxInstance } from '../types';
 
 interface ObjectPreviewProps {
@@ -13,7 +14,8 @@ interface ObjectPreviewProps {
 }
 
 export function ObjectPreview({ pageName }: ObjectPreviewProps) {
-  const { instances, classes, updateInstance } = useObjaxStore();
+  const store = useObjaxStore();
+  const { instances, classes, updateInstance } = store;
   const [inspectorInstance, setInspectorInstance] = useState<ObjaxInstance | null>(null);
   
   // Filter instances for this page
@@ -22,6 +24,22 @@ export function ObjectPreview({ pageName }: ObjectPreviewProps) {
   const handleObjectClick = (event: React.MouseEvent, instance: ObjaxInstance) => {
     if (event.metaKey || event.ctrlKey) {
       setInspectorInstance(instance);
+    }
+  };
+
+  const handleButtonClick = (instance: ObjaxInstance) => {
+    // Check for event listeners
+    if (instance.eventListeners) {
+      const clickListeners = instance.eventListeners.filter(
+        (listener: any) => listener.eventType === 'click'
+      );
+      
+      clickListeners.forEach((listener: any) => {
+        executeEventAction(listener.action, instance.name, store);
+      });
+    } else {
+      // Fallback to console log
+      console.log(`${instance.name} clicked!`);
     }
   };
 
@@ -60,7 +78,7 @@ export function ObjectPreview({ pageName }: ObjectPreviewProps) {
                   <div className="object-preview-morph">
                     <ButtonMorph 
                       label={instance.name} 
-                      onClick={() => console.log(`${instance.name} clicked!`)}
+                      onClick={() => handleButtonClick(instance)}
                     />
                   </div>
                 )}

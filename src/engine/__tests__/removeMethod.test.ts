@@ -6,9 +6,9 @@ describe('Remove Method Functionality', () => {
   it('should parse instanceName remove correctly', () => {
     const parser = new LinearObjaxParser();
     const code = `
-define Task
+Task is a Class
 Task has field "title"
-myTask is a new Task
+myTask is a Task
 myTask remove
     `;
 
@@ -29,9 +29,9 @@ myTask remove
     const executor = new ObjaxExecutor();
     
     const code = `
-define Task
+Task is a Class
 Task has field "title"
-myTask is a new Task
+myTask is a Task
 myTask open
 myTask remove
     `;
@@ -67,11 +67,11 @@ nonExistentTask remove
     const executor = new ObjaxExecutor();
     
     const code = `
-define Task
+Task is a Class
 Task has field "title"
-task1 is a new Task
-task2 is a new Task
-task3 is a new Task
+task1 is a Task
+task2 is a Task
+task3 is a Task
 task1 open
 task2 open
 task3 open
@@ -99,10 +99,10 @@ task3 remove
     const executor = new ObjaxExecutor();
     
     const code = `
-define TaskList
+TaskList is a Class
 TaskList has field "items"
-myButton is a new ButtonMorph
-myTaskList is a new TaskList
+myButton is a ButtonMorph
+myTaskList is a TaskList
 myTaskList open
 myTaskList remove
     `;
@@ -127,9 +127,9 @@ myTaskList remove
     const executor = new ObjaxExecutor();
     
     const code = `
-myButton is a new ButtonMorph
-myField is a new FieldMorph
-myList is a new ListMorph
+myButton is a ButtonMorph
+myField is a FieldMorph
+myList is a ListMorph
 myButton remove
 myList remove
     `;
@@ -155,9 +155,9 @@ myList remove
     const executor = new ObjaxExecutor();
     
     const code = `
-define Task
+Task is a Class
 Task has field "title"
-myTask is a new Task
+myTask is a Task
 myTask remove
     `;
 

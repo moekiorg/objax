@@ -2,9 +2,9 @@ import { describe, expect, it } from 'vitest'
 import { LinearObjaxParser } from './linearParser'
 
 describe('LinearObjaxParser', () => {
-  it('should create a simple class definition', () => {
+  it('should create a simple class definition with new syntax', () => {
     const parser = new LinearObjaxParser()
-    const code = 'define Task\nTask has field "title"'
+    const code = 'Task is a Class\nTask has field "title"'
     
     const result = parser.parse(code)
     expect(result.errors).toHaveLength(0)
@@ -16,7 +16,7 @@ describe('LinearObjaxParser', () => {
 
   it('should create a field with default value', () => {
     const parser = new LinearObjaxParser()
-    const code = 'define Task\nTask has field "done" has default false'
+    const code = 'Task is a Class\nTask has field "done" has default false'
     
     const result = parser.parse(code)
     expect(result.errors).toHaveLength(0)
@@ -26,21 +26,21 @@ describe('LinearObjaxParser', () => {
     expect(result.classes[0].fields[0].defaultValue).toBe(false)
   })
 
-  it('should create a method definition', () => {
+  it('should create a method definition with new syntax', () => {
     const parser = new LinearObjaxParser()
-    const code = 'define Task\nTask has method "complete" do set field "done" of myself to true'
+    const code = 'Task is a Class\nTask has method "complete" do self.done is true'
     
     const result = parser.parse(code)
     expect(result.errors).toHaveLength(0)
     expect(result.classes).toHaveLength(1)
     expect(result.classes[0].methods).toHaveLength(1)
     expect(result.classes[0].methods[0].name).toBe('complete')
-    expect(result.classes[0].methods[0].body).toBe('set field "done" of myself to true')
+    expect(result.classes[0].methods[0].body).toBe('self.done is true')
   })
 
   it('should create a new instance', () => {
     const parser = new LinearObjaxParser()
-    const code = 'myTask is a new Task'
+    const code = 'myTask is a Task'
     
     const result = parser.parse(code)
     expect(result.errors).toHaveLength(0)
@@ -51,11 +51,11 @@ describe('LinearObjaxParser', () => {
 
   it('should handle complex class with fields, methods and instances', () => {
     const parser = new LinearObjaxParser()
-    const code = `define Task
+    const code = `Task is a Class
 Task has field "title"
 Task has field "done" has default false
-Task has method "complete" do set field "done" of myself to true
-myTask is a new Task`
+Task has method "complete" do self.done is true
+myTask is a Task`
 
     const result = parser.parse(code)
     expect(result.errors).toHaveLength(0)
@@ -70,12 +70,12 @@ myTask is a new Task`
 
   it('should handle multiple classes and instances', () => {
     const parser = new LinearObjaxParser()
-    const code = `define Task
+    const code = `Task is a Class
 Task has field "title"
-define User  
+User is a Class  
 User has field "name"
-myTask is a new Task
-myUser is a new User`
+myTask is a Task
+myUser is a User`
 
     const result = parser.parse(code)
     expect(result.errors).toHaveLength(0)
@@ -87,9 +87,9 @@ myUser is a new User`
 
   it('should parse method call statements', () => {
     const parser = new LinearObjaxParser()
-    const code = `define Task
-Task has method "complete" do set field "done" of myself to true
-myTask is a new Task
+    const code = `Task is a Class
+Task has method "complete" do self.done is true
+myTask is a Task
 myTask complete`
 
     const result = parser.parse(code)
@@ -106,9 +106,9 @@ myTask complete`
 
   it('should parse messaging syntax with parameters', () => {
     const parser = new LinearObjaxParser()
-    const code = `define Task
+    const code = `Task is a Class
 Task has method "setTitle" with "title" do set field "title" of myself to "title"
-myTask is a new Task
+myTask is a Task
 myTask setTitle "New Title"`
 
     const result = parser.parse(code)
@@ -121,34 +121,24 @@ myTask setTitle "New Title"`
     expect(methodCall.parameters).toEqual(['New Title'])
   })
 
-  it('should parse state operations', () => {
+
+  it('should parse page navigation with world goto', () => {
     const parser = new LinearObjaxParser()
-    const code = `set state "score" to 100`
+    const code = `world goto with page "HomePage"`
 
     const result = parser.parse(code)
     expect(result.errors).toHaveLength(0)
-    expect(result.stateOperations).toHaveLength(1)
+    expect(result.methodCalls).toHaveLength(1)
 
-    const stateOp = result.stateOperations[0]
-    expect(stateOp.stateName).toBe('score')
-    expect(stateOp.value).toBe(100)
-  })
-
-  it('should parse page navigation', () => {
-    const parser = new LinearObjaxParser()
-    const code = `go to page "HomePage"`
-
-    const result = parser.parse(code)
-    expect(result.errors).toHaveLength(0)
-    expect(result.pageNavigations).toHaveLength(1)
-
-    const pageNav = result.pageNavigations[0]
-    expect(pageNav.pageName).toBe('HomePage')
+    const methodCall = result.methodCalls[0]
+    expect(methodCall.instanceName).toBe('world')
+    expect(methodCall.methodName).toBe('goto')
+    expect(methodCall.keywordParameters?.page).toBe('HomePage')
   })
 
   it('should parse method with parameters', () => {
     const parser = new LinearObjaxParser()
-    const code = 'define TaskList\nTaskList has method "add" with "title" do set field "count" of myself to 1'
+    const code = 'TaskList is a Class\nTaskList has method "add" with "title" do self.count is 1'
     
     const result = parser.parse(code)
     expect(result.errors).toHaveLength(0)
@@ -158,12 +148,12 @@ myTask setTitle "New Title"`
     const method = result.classes[0].methods[0]
     expect(method.name).toBe('add')
     expect(method.parameters).toEqual(['title'])
-    expect(method.body).toBe('set field "count" of myself to 1')
+    expect(method.body).toBe('self.count is 1')
   })
 
   it('should parse instance creation with keyword arguments', () => {
     const parser = new LinearObjaxParser()
-    const code = 'newTask is a new Task with title "My Title" and done false'
+    const code = 'newTask is a Task with title "My Title" and done false'
     
     const result = parser.parse(code)
     expect(result.errors).toHaveLength(0)
@@ -205,20 +195,19 @@ myTask setTitle "New Title"`
     expect(assignment.type).toBe('primitive')
   })
 
-  it('should parse connection statements', () => {
+  it('should parse DatabaseMorph with source', () => {
     const parser = new LinearObjaxParser()
-    const code = `myTasks is a new TaskList
-myTaskListView is a new DatabaseMorph
-connect myTasks to myTaskListView`
+    const code = `myTasks is a TaskList
+myTaskListView is a new DatabaseMorph with source myTasks`
 
     const result = parser.parse(code)
     expect(result.errors).toHaveLength(0)
     expect(result.instances).toHaveLength(2)
-    expect(result.connections).toHaveLength(1)
-
-    const connection = result.connections[0]
-    expect(connection.sourceInstance).toBe('myTasks')
-    expect(connection.targetInstance).toBe('myTaskListView')
+    
+    const dbInstance = result.instances.find(i => i.name === 'myTaskListView')
+    expect(dbInstance).toBeDefined()
+    expect(dbInstance?.className).toBe('DatabaseMorph')
+    expect(dbInstance?.properties.source).toBe('myTasks')
   })
 
   it('should parse print statements', () => {
@@ -264,14 +253,14 @@ myObject update "param1" 42`
 
   it('should parse the complex TaskList example', () => {
     const parser = new LinearObjaxParser()
-    const code = `define TaskList
+    const code = `TaskList is a Class
 TaskList has field "items" has default []
-TaskList has method "add" with "title" do newTask is a new Task with title and add newTask to "items" of myself
+TaskList has method "add" with "title" do newTask is a Task with title and add newTask to "items" of myself
 
-define Task
+Task is a Class
 Task has field "title"
 
-myTaskList is a new TaskList`
+myTaskList is a TaskList`
     
     const result = parser.parse(code)
     expect(result.errors).toHaveLength(0)
@@ -297,7 +286,7 @@ myTaskList is a new TaskList`
 
   it('should parse State class creation with keyword arguments', () => {
     const parser = new LinearObjaxParser()
-    const code = 'score is a new State with name "score" and value 0'
+    const code = 'score is a State with name "score" and value 0'
     
     const result = parser.parse(code)
     expect(result.errors).toHaveLength(0)
@@ -312,7 +301,7 @@ myTaskList is a new TaskList`
 
   it('should parse State method calls for set and get', () => {
     const parser = new LinearObjaxParser()
-    const code = `score is a new State with name "score"
+    const code = `score is a State with name "score"
 score set 100
 score get`
     
@@ -334,7 +323,7 @@ score get`
 
   it('should parse instance creation with multiple keyword arguments', () => {
     const parser = new LinearObjaxParser()
-    const code = 'person is a new Person with name "John" and age 30 and active true'
+    const code = 'person is a Person with name "John" and age 30 and active true'
     
     const result = parser.parse(code)
     expect(result.errors).toHaveLength(0)
@@ -350,7 +339,7 @@ score get`
 
   it('should parse instance creation with single keyword argument', () => {
     const parser = new LinearObjaxParser()
-    const code = 'counter is a new Counter with value 5'
+    const code = 'counter is a Counter with value 5'
     
     const result = parser.parse(code)
     expect(result.errors).toHaveLength(0)
@@ -360,5 +349,105 @@ score get`
     expect(instance.name).toBe('counter')
     expect(instance.className).toBe('Counter')
     expect(instance.properties.value).toBe(5)
+  })
+
+  it('should parse Timer instance creation', () => {
+    const parser = new LinearObjaxParser()
+    const code = 'timer is a Timer'
+    
+    const result = parser.parse(code)
+    expect(result.errors).toHaveLength(0)
+    expect(result.instances).toHaveLength(1)
+    
+    const instance = result.instances[0]
+    expect(instance.name).toBe('timer')
+    expect(instance.className).toBe('Timer')
+  })
+
+  it('should parse timer repeat with time and action', () => {
+    const parser = new LinearObjaxParser()
+    const code = 'timer repeat with time "1 second" and action "allGrow"'
+    
+    const result = parser.parse(code)
+    expect(result.errors).toHaveLength(0)
+    expect(result.methodCalls).toHaveLength(1)
+    
+    const methodCall = result.methodCalls[0]
+    expect(methodCall.instanceName).toBe('timer')
+    expect(methodCall.methodName).toBe('repeat')
+    expect(methodCall.keywordParameters?.time).toBe('1 second')
+    expect(methodCall.keywordParameters?.action).toBe('allGrow')
+  })
+
+  it('should parse doAll with action', () => {
+    const parser = new LinearObjaxParser()
+    const code = 'Seed doAll with action "grow"'
+    
+    const result = parser.parse(code)
+    expect(result.errors).toHaveLength(0)
+    expect(result.methodCalls).toHaveLength(1)
+    
+    const methodCall = result.methodCalls[0]
+    expect(methodCall.instanceName).toBe('Seed')
+    expect(methodCall.methodName).toBe('doAll')
+    expect(methodCall.keywordParameters?.action).toBe('grow')
+  })
+
+  it('should parse block assignment', () => {
+    const parser = new LinearObjaxParser()
+    const code = 'grow is (self.size is self.size + 1)'
+    
+    const result = parser.parse(code)
+    expect(result.errors).toHaveLength(0)
+    expect(result.blockAssignments).toHaveLength(1)
+    
+    const blockAssignment = result.blockAssignments[0]
+    expect(blockAssignment.blockName).toBe('grow')
+    expect(blockAssignment.blockBody).toBe('self.size is self.size + 1')
+  })
+
+  it('should parse complex block assignment', () => {
+    const parser = new LinearObjaxParser()
+    const code = 'allGrow is (Seed doAll with action "grow")'
+    
+    const result = parser.parse(code)
+    expect(result.errors).toHaveLength(0)
+    expect(result.blockAssignments).toHaveLength(1)
+    
+    const blockAssignment = result.blockAssignments[0]
+    expect(blockAssignment.blockName).toBe('allGrow')
+    expect(blockAssignment.blockBody).toBe('Seed doAll with action "grow"')
+  })
+
+  it('should parse the complete Timer, doAll and block example', () => {
+    const parser = new LinearObjaxParser()
+    const code = `timer is a Timer
+grow is (self.size is self.size + 1)
+allGrow is (Seed doAll with action "grow")
+timer repeat with time "1 second" and action "allGrow"`
+    
+    const result = parser.parse(code)
+    expect(result.errors).toHaveLength(0)
+    expect(result.instances).toHaveLength(1)
+    expect(result.blockAssignments).toHaveLength(2)
+    expect(result.methodCalls).toHaveLength(1)
+    
+    // Check timer instance
+    expect(result.instances[0].name).toBe('timer')
+    expect(result.instances[0].className).toBe('Timer')
+    
+    // Check block assignments
+    expect(result.blockAssignments[0].blockName).toBe('grow')
+    expect(result.blockAssignments[0].blockBody).toBe('self.size is self.size + 1')
+    
+    expect(result.blockAssignments[1].blockName).toBe('allGrow')
+    expect(result.blockAssignments[1].blockBody).toBe('Seed doAll with action "grow"')
+    
+    // Check timer repeat method call
+    const methodCall = result.methodCalls[0]
+    expect(methodCall.instanceName).toBe('timer')
+    expect(methodCall.methodName).toBe('repeat')
+    expect(methodCall.keywordParameters?.time).toBe('1 second')
+    expect(methodCall.keywordParameters?.action).toBe('allGrow')
   })
 })

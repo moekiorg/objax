@@ -1,5 +1,5 @@
 import { render, screen, fireEvent } from '@testing-library/react';
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { ClassBrowser } from './ClassBrowser';
 
 describe('ClassBrowser', () => {
@@ -12,17 +12,18 @@ describe('ClassBrowser', () => {
       }
     ];
     
-    render(<ClassBrowser classes={mockClasses} />);
+    render(<ClassBrowser classes={mockClasses} onClassClick={() => {}} />);
     expect(screen.getByText('クラスブラウザ')).toBeInTheDocument();
     expect(screen.getByText('Task')).toBeInTheDocument();
   });
 
   it('should show message when no classes exist', () => {
-    render(<ClassBrowser classes={[]} />);
+    render(<ClassBrowser classes={[]} onClassClick={() => {}} />);
     expect(screen.getByText(/まだクラスが定義されていません/)).toBeInTheDocument();
   });
 
-  it('should expand class details when clicked', () => {
+  it('should call onClassClick when class is clicked', () => {
+    const mockOnClassClick = vi.fn();
     const mockClasses = [
       {
         name: 'Task',
@@ -31,15 +32,12 @@ describe('ClassBrowser', () => {
       }
     ];
     
-    render(<ClassBrowser classes={mockClasses} />);
+    render(<ClassBrowser classes={mockClasses} onClassClick={mockOnClassClick} />);
     
-    // Click to expand details
+    // Click class name
     fireEvent.click(screen.getByText('Task'));
     
-    // Should show field and method details
-    expect(screen.getByText('フィールド')).toBeInTheDocument();
-    expect(screen.getByText('メソッド')).toBeInTheDocument();
-    expect(screen.getByText('title')).toBeInTheDocument();
-    expect(screen.getByText('complete()')).toBeInTheDocument();
+    // Should call onClassClick
+    expect(mockOnClassClick).toHaveBeenCalledWith('Task');
   });
 });

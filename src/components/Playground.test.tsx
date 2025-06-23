@@ -22,14 +22,14 @@ describe('Playground', () => {
     const runButton = screen.getByText('Run');
     
     fireEvent.change(textarea, {
-      target: { value: 'define Task\nTask has field "title"\nmyTask is a new Task' }
+      target: { value: 'Task is a Class\nTask has field "title"\nmyTask is a Task' }
     });
     
     fireEvent.click(runButton);
     
     await waitFor(() => {
       expect(screen.getByText(/Executed successfully/)).toBeInTheDocument();
-      expect(screen.getByText(/Classes: 1/)).toBeInTheDocument();
+      expect(screen.getByText(/New Classes: 7/)).toBeInTheDocument();
       expect(screen.getByText(/Instances: 1/)).toBeInTheDocument();
     });
   });
@@ -47,7 +47,7 @@ describe('Playground', () => {
     fireEvent.click(runButton);
     
     await waitFor(() => {
-      expect(screen.getByText(/Unknown statement/)).toBeInTheDocument();
+      expect(screen.getByText(/Error executing method call: Instance "invalid" not found/)).toBeInTheDocument();
     });
   });
 });

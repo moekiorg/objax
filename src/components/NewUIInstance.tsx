@@ -1,83 +1,96 @@
-import type React from 'react';
+import type React from "react";
 
 interface UIClassItem {
   name: string;
-  icon: string;
-  description: string;
   defaultProps: Record<string, any>;
 }
 
 const UI_CLASSES: UIClassItem[] = [
   {
-    name: 'ButtonMorph',
-    icon: '🔘',
-    description: 'クリックボタン',
+    name: "ButtonMorph",
     defaultProps: {
-      label: '新しいボタン',
-    }
+      label: "新しいボタン",
+    },
   },
   {
-    name: 'FieldMorph',
-    icon: '📝',
-    description: '入力フィールド',
+    name: "FieldMorph",
     defaultProps: {
-      label: '新しいフィールド',
-      value: '',
-      type: 'text'
-    }
+      label: "新しいフィールド",
+      value: "",
+      type: "text",
+    },
   },
   {
-    name: 'ListMorph',
-    icon: '📋',
-    description: 'アイテムリスト',
+    name: "ListMorph",
     defaultProps: {
-      label: '新しいリスト',
-      items: ['アイテム1', 'アイテム2'],
-    }
+      label: "新しいリスト",
+      items: ["アイテム1", "アイテム2"],
+    },
   },
   {
-    name: 'GroupMorph',
-    icon: '📦',
-    description: 'コンテナグループ',
+    name: "GroupMorph",
     defaultProps: {
-      label: '新しいグループ',
-      flexDirection: 'column',
-      alignItems: 'stretch',
-      justifyContent: 'flex-start',
-      gap: '8px',
-      padding: '12px',
-      children: []
-    }
+      label: "新しいグループ",
+      flexDirection: "column",
+      alignItems: "stretch",
+      justifyContent: "flex-start",
+      gap: "8px",
+      padding: "12px",
+      children: [],
+    },
   },
   {
-    name: 'DatabaseMorph',
-    icon: '🗃️',
-    description: 'データテーブル/グリッド',
+    name: "DatabaseMorph",
     defaultProps: {
-      label: '新しいデータベース',
-      viewMode: 'table',
-      columns: ['value'],
-      dataSource: '',
-      width: '400px'
-    }
-  }
+      label: "新しいデータベース",
+      viewMode: "table",
+      columns: ["value"],
+      dataSource: "",
+      width: "400px",
+    },
+  },
+  {
+    name: "BoxMorph",
+    defaultProps: {
+      label: "新しいボックス",
+      width: 100,
+      height: 50,
+      backgroundColor: "#ffffff",
+      borderColor: "#cccccc",
+      borderWidth: "1px",
+      borderRadius: "4px",
+      padding: "12px",
+      margin: "0px",
+      textColor: "#000000",
+      fontSize: "14px",
+      fontWeight: "normal",
+      textAlign: "left",
+      display: "block",
+      position: "static",
+      opacity: "1",
+      boxShadow: "none",
+    },
+  },
 ];
 
 export function NewUIInstance() {
   const handleDragStart = (e: React.DragEvent, uiClass: UIClassItem) => {
     // Store the UI class data in drag event
-    e.dataTransfer.effectAllowed = 'copy';
-    e.dataTransfer.setData('application/json', JSON.stringify({
-      type: 'new-ui-instance',
-      className: uiClass.name,
-      defaultProps: uiClass.defaultProps
-    }));
-    
+    e.dataTransfer.effectAllowed = "copy";
+    e.dataTransfer.setData(
+      "application/json",
+      JSON.stringify({
+        type: "new-ui-instance",
+        className: uiClass.name,
+        defaultProps: uiClass.defaultProps,
+      })
+    );
+
     // Visual feedback
-    const dragPreview = document.createElement('div');
+    const dragPreview = document.createElement("div");
     dragPreview.textContent = `${uiClass.icon} ${uiClass.name}`;
-    dragPreview.style.position = 'absolute';
-    dragPreview.style.left = '-1000px';
+    dragPreview.style.position = "absolute";
+    dragPreview.style.left = "-1000px";
     document.body.appendChild(dragPreview);
     e.dataTransfer.setDragImage(dragPreview, 0, 0);
     setTimeout(() => document.body.removeChild(dragPreview), 0);
@@ -85,13 +98,8 @@ export function NewUIInstance() {
 
   return (
     <div className="new-ui-instance">
-      <div className="new-ui-instance-header">
-        <h3>UIコンポーネント</h3>
-        <p className="new-ui-instance-subtitle">キャンバスにドラッグして追加</p>
-      </div>
-      
       <div className="new-ui-instance-list">
-        {UI_CLASSES.map(uiClass => (
+        {UI_CLASSES.map((uiClass) => (
           <div
             key={uiClass.name}
             className="new-ui-instance-item"
@@ -99,11 +107,7 @@ export function NewUIInstance() {
             onDragStart={(e) => handleDragStart(e, uiClass)}
             data-testid={`ui-morph-${uiClass.name}`}
           >
-            <div className="new-ui-instance-item-icon">{uiClass.icon}</div>
-            <div className="new-ui-instance-item-content">
               <div className="new-ui-instance-item-name">{uiClass.name}</div>
-              <div className="new-ui-instance-item-description">{uiClass.description}</div>
-            </div>
           </div>
         ))}
       </div>

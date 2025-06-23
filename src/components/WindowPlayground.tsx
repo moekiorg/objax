@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { parseObjaxWithClasses } from "../engine/objaxEngine";
+import { convertToClassDefinition, convertToInstanceDefinition } from "../engine/objaxEngine";
 import { useObjaxStore } from "../stores/objaxStore";
 import { presetUIClasses } from "../engine/presetClasses";
 
@@ -8,7 +8,7 @@ interface WindowPlaygroundProps {
 }
 
 export function WindowPlayground({ pageName }: WindowPlaygroundProps) {
-  const { addInstance, addClass, updateInstance, classes, instances } =
+  const { addInstance, addClass, updateInstance, classes, instances, setCurrentPage, getObjaxEngine } =
     useObjaxStore();
   const [code, setCode] = useState("");
   const [output, setOutput] = useState("");
@@ -20,9 +20,19 @@ export function WindowPlayground({ pageName }: WindowPlaygroundProps) {
       const pageInstances = instances.filter(
         (instance) => instance.page === pageName
       );
+      
+      // Get the persistent engine instance to maintain block registry
+      const engine = getObjaxEngine();
+      
       // Combine user-defined classes with preset UI classes
       const allClasses = [...presetUIClasses, ...classes];
-      const result = parseObjaxWithClasses(code, allClasses, pageInstances);
+      
+      // Convert to engine format
+      const classDefinitions = allClasses.map(convertToClassDefinition);
+      const instanceDefinitions = pageInstances.map(convertToInstanceDefinition);
+      
+      // Execute using the persistent engine
+      const result = engine.execute(code, classDefinitions, instanceDefinitions);
 
       // Add only new classes to store (skip existing ones)
       const newClasses = result.classes.slice(classes.length);
@@ -47,9 +57,20 @@ export function WindowPlayground({ pageName }: WindowPlaygroundProps) {
         addClass(objaxClass);
       });
 
+      // Handle page navigations
+      if (result.pageNavigations.length > 0) {
+        const lastNavigation = result.pageNavigations[result.pageNavigations.length - 1];
+        console.log('WindowPlayground: Attempting to navigate to:', lastNavigation.pageName);
+        setCurrentPage(lastNavigation.pageName);
+        // Note: Don't call togglePlayground here as it would reset currentPage to null
+        // Let the user manually close the playground window if needed
+      }
+
       // Handle instances: add new ones and update existing ones
       console.log('Result instances:', result.instances);
       console.log('Result method calls:', result.methodCalls);
+      console.log('Result event listeners:', result.eventListeners);
+      console.log('Result page navigations:', result.pageNavigations);
       console.log('Result errors:', result.errors);
 
       result.instances.forEach((resultInstance) => {
@@ -87,6 +108,35 @@ export function WindowPlayground({ pageName }: WindowPlaygroundProps) {
         }
       });
 
+      // Handle event listeners
+      if (result.eventListeners && result.eventListeners.length > 0) {
+        result.eventListeners.forEach((eventListener) => {
+          // Find the target instance
+          const targetInstance = instances.find(i => i.name === eventListener.instanceName);
+          if (targetInstance) {
+            // Initialize eventListeners array if it doesn't exist
+            if (!targetInstance.eventListeners) {
+              targetInstance.eventListeners = [];
+            }
+
+            // Add the event listener to the instance
+            targetInstance.eventListeners.push({
+              eventType: eventListener.eventType,
+              action: eventListener.action // This will be the @block:blockName format
+            });
+
+            console.log('Added event listener to instance:', eventListener.instanceName, eventListener);
+            
+            // Update the instance in the store
+            updateInstance(targetInstance.id, { 
+              eventListeners: targetInstance.eventListeners 
+            });
+          } else {
+            console.warn('Target instance not found for event listener:', eventListener.instanceName);
+          }
+        });
+      }
+
       const newInstancesCount = result.instances.length - pageInstances.length;
       const updatedInstancesCount = Math.min(
         result.instances.length,
@@ -98,9 +148,15 @@ export function WindowPlayground({ pageName }: WindowPlaygroundProps) {
       }個の新しいクラス, ${Math.max(
         0,
         newInstancesCount
-      )}個の新しいインスタンス\n- 更新: ${updatedInstancesCount}個の既存インスタンス\n\nアクセス可能な合計:\n- ${
+      )}個の新しいインスタンス\n- 更新: ${updatedInstancesCount}個の既存インスタンス\n- イベントリスナー: ${result.eventListeners?.length || 0}個\n\nアクセス可能な合計:\n- ${
         result.classes.length
       }個のクラス\n- ${result.instances.length}個のインスタンス`;
+
+      // Add page navigation information
+      if (result.pageNavigations.length > 0) {
+        const lastNavigation = result.pageNavigations[result.pageNavigations.length - 1];
+        outputMessage += `\n\nページ移動: ${lastNavigation.pageName}`;
+      }
 
       // Add print statement outputs
       if (result.printStatements && result.printStatements.length > 0) {

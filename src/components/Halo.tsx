@@ -1,4 +1,4 @@
-import type React from 'react';
+import type React from "react";
 
 interface HaloProps {
   /** 対象オブジェクトの位置とサイズ */
@@ -15,17 +15,17 @@ interface HaloProps {
   onResizeStart: (e: React.MouseEvent) => void;
 }
 
-export function Halo({ 
-  targetRect, 
-  onDelete, 
-  onClose, 
-  onInspect, 
+export function Halo({
+  targetRect,
+  onDelete,
+  onClose,
+  onInspect,
   onMessage,
-  onResizeStart 
+  onResizeStart,
 }: HaloProps) {
   const handleRadius = 12;
   const haloOffset = 8;
-  
+
   // ハンドルの位置を計算（オブジェクトを囲むように配置）
   const haloRect = {
     left: targetRect.left - haloOffset,
@@ -39,64 +39,64 @@ export function Halo({
   // 5つのハンドルの位置
   const handles = [
     {
-      id: 'delete',
-      label: 'D',
+      id: "delete",
+      label: "D",
       x: haloRect.left - handleRadius,
       y: haloRect.top - handleRadius,
       onClick: onDelete,
-      className: 'halo-handle-delete',
-      title: '削除'
+      className: "halo-handle-delete",
+      title: "削除",
     },
     {
-      id: 'close',
-      label: 'C',
+      id: "close",
+      label: "C",
       x: haloRect.right - handleRadius,
       y: haloRect.top - handleRadius,
       onClick: onClose,
-      className: 'halo-handle-close',
-      title: 'ハローを閉じる'
+      className: "halo-handle-close",
+      title: "ハローを閉じる",
     },
     {
-      id: 'inspect',
-      label: 'I',
+      id: "inspect",
+      label: "I",
       x: haloRect.left - handleRadius,
       y: haloRect.bottom - handleRadius,
       onClick: onInspect,
-      className: 'halo-handle-inspect',
-      title: 'インスペクト'
+      className: "halo-handle-inspect",
+      title: "インスペクト",
     },
     {
-      id: 'message',
-      label: 'M',
+      id: "message",
+      label: "M",
       x: haloRect.left + haloRect.width / 2 - handleRadius,
       y: haloRect.bottom - handleRadius,
       onClick: onMessage,
-      className: 'halo-handle-message',
-      title: 'メッセージ'
+      className: "halo-handle-message",
+      title: "メッセージ",
     },
     {
-      id: 'resize',
-      label: '↗',
+      id: "resize",
+      label: "↗",
       x: haloRect.right - handleRadius,
       y: haloRect.bottom - handleRadius,
       onMouseDown: onResizeStart,
-      className: 'halo-handle-resize',
-      title: 'リサイズ',
-      cursor: 'nw-resize'
-    }
+      className: "halo-handle-resize",
+      title: "リサイズ",
+      cursor: "nw-resize",
+    },
   ];
 
   return (
-    <div 
+    <div
       className="halo-overlay"
       data-testid="halo-overlay"
       style={{
-        position: 'fixed',
+        position: "fixed",
         left: 0,
         top: 0,
-        width: '100vw',
-        height: '100vh',
-        pointerEvents: 'none',
+        width: "100vw",
+        height: "100vh",
+        pointerEvents: "none",
         zIndex: 1000,
       }}
     >
@@ -104,41 +104,39 @@ export function Halo({
       <div
         className="halo-border"
         style={{
-          position: 'absolute',
+          position: "absolute",
           left: haloRect.left,
           top: haloRect.top,
           width: haloRect.width,
           height: haloRect.height,
-          border: '2px dashed #007ACC',
-          borderRadius: '4px',
-          pointerEvents: 'none',
+          borderRadius: "4px",
+          pointerEvents: "none",
         }}
       />
-      
+
       {/* Handles */}
-      {handles.map(handle => (
+      {handles.map((handle) => (
         <div
           key={handle.id}
           className={`halo-handle ${handle.className}`}
           style={{
-            position: 'absolute',
+            position: "absolute",
             left: handle.x,
             top: handle.y,
             width: handleRadius * 2,
             height: handleRadius * 2,
-            borderRadius: '50%',
-            backgroundColor: '#007ACC',
-            color: 'white',
-            border: '2px solid white',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: '10px',
-            fontWeight: 'bold',
-            cursor: handle.cursor || 'pointer',
-            pointerEvents: 'auto',
-            userSelect: 'none',
-            boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+            borderRadius: "50%",
+            backgroundColor: "#007ACC",
+            color: "white",
+            border: "2px solid white",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: "10px",
+            fontWeight: "bold",
+            pointerEvents: "auto",
+            userSelect: "none",
+            boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
           }}
           title={handle.title}
           onClick={handle.onClick}

@@ -1,6 +1,6 @@
 interface ButtonMorphProps {
   label: string;
-  onClick: () => void;
+  onClick?: () => void;
 }
 
 export function ButtonMorph({ label, onClick }: ButtonMorphProps) {

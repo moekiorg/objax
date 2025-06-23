@@ -4,7 +4,7 @@ import { useObjaxStore } from '../stores/objaxStore';
 import { presetUIClasses } from '../engine/presetClasses';
 
 export function Playground() {
-  const { togglePlayground, classes, addInstance } = useObjaxStore();
+  const { togglePlayground, classes, addInstance, setCurrentPage } = useObjaxStore();
   const [code, setCode] = useState('');
   const [output, setOutput] = useState('');
   const [error, setError] = useState('');
@@ -15,6 +15,20 @@ export function Playground() {
       const allClasses = [...presetUIClasses, ...classes];
       const result = parseObjaxWithClasses(code, allClasses);
       
+      console.log('Playground execution result:', result);
+      console.log('Page navigations:', result.pageNavigations);
+      
+      // Handle page navigations
+      if (result.pageNavigations.length > 0) {
+        const lastNavigation = result.pageNavigations[result.pageNavigations.length - 1];
+        console.log('Attempting to navigate to:', lastNavigation.pageName);
+        setCurrentPage(lastNavigation.pageName);
+        console.log('setCurrentPage called');
+        // Close playground and show the target page
+        togglePlayground();
+        console.log('togglePlayground called');
+      }
+      
       let output = `Executed successfully!\n`;
       output += `Available Classes: ${classes.length}\n`;
       output += `New Classes: ${result.classes.length - classes.length}\n`;
@@ -22,6 +36,10 @@ export function Playground() {
       output += `Method Calls: ${result.methodCalls.length}\n`;
       output += `List Operations: ${result.listOperations.length}\n`;
       output += `Page Navigations: ${result.pageNavigations.length}`;
+      
+      if (result.pageNavigations.length > 0) {
+        output += `\nNavigated to: ${result.pageNavigations[result.pageNavigations.length - 1].pageName}`;
+      }
       
       setOutput(output);
       setError('');
@@ -54,12 +72,12 @@ export function Playground() {
               placeholder="Enter Objax code here...
 
 Example:
-define Task
+Task is a Class
 Task has field &quot;title&quot;
 Task has field &quot;done&quot; has default false
-Task has method &quot;complete&quot; do set field &quot;done&quot; of myself to true
-myTask is a new Task
-call &quot;complete&quot; on myTask"
+Task has method &quot;complete&quot; do self.done is true
+myTask is a Task
+myTask complete"
               className="playground-textarea"
             />
             <button

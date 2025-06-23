@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { devtools, persist } from 'zustand/middleware';
+import { ObjaxEngine } from '../engine/objaxEngine';
 import type {
   ObjaxClass,
   ObjaxInstance,
@@ -14,6 +15,7 @@ interface ObjaxStore extends ObjaxProject {
   showPlayground: boolean;
   history: HistoryState[];
   historyIndex: number;
+  objaxEngine: ObjaxEngine;
 
   // Page actions
   addPage: (page: ObjaxPage) => void;
@@ -42,6 +44,9 @@ interface ObjaxStore extends ObjaxProject {
   saveToHistory: () => void;
   undo: () => void;
   canUndo: () => boolean;
+
+  // Engine actions
+  getObjaxEngine: () => ObjaxEngine;
 }
 
 export const useObjaxStore = create<ObjaxStore>()(
@@ -56,6 +61,7 @@ export const useObjaxStore = create<ObjaxStore>()(
         showPlayground: false,
         history: [],
         historyIndex: -1,
+        objaxEngine: new ObjaxEngine(),
 
         // Page actions
         addPage: (page) =>
@@ -70,7 +76,12 @@ export const useObjaxStore = create<ObjaxStore>()(
             currentPage: state.currentPage === name ? null : state.currentPage,
           })),
 
-        setCurrentPage: (name) => set({ currentPage: name }),
+        setCurrentPage: (name) => {
+          console.log('Store setCurrentPage called with:', name);
+          console.log('Current state before change:', get().currentPage);
+          set({ currentPage: name });
+          console.log('Current state after change:', get().currentPage);
+        },
 
         setCurrentPageWithHistory: (name, pushToHistory = true) => {
           // Update browser history if requested
@@ -229,6 +240,11 @@ export const useObjaxStore = create<ObjaxStore>()(
         canUndo: () => {
           const state = get();
           return state.historyIndex >= 0;
+        },
+
+        // Engine actions
+        getObjaxEngine: () => {
+          return get().objaxEngine;
         },
       }),
       {

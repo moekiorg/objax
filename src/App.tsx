@@ -14,20 +14,22 @@ function App() {
       setCurrentPage(page);
     };
 
-    // Initialize page from URL on first load
-    const urlParams = new URLSearchParams(window.location.search);
-    const pageFromUrl = urlParams.get('page');
-    if (pageFromUrl && pageFromUrl !== currentPage) {
-      console.log('Initializing page from URL:', pageFromUrl);
-      setCurrentPage(pageFromUrl);
-    }
-
     window.addEventListener('popstate', handlePopState);
     
     return () => {
       window.removeEventListener('popstate', handlePopState);
     };
-  }, [setCurrentPage, currentPage]);
+  }, [setCurrentPage]);
+
+  // Separate effect for URL initialization (only run once)
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const pageFromUrl = urlParams.get('page');
+    if (pageFromUrl) {
+      console.log('Initializing page from URL:', pageFromUrl);
+      setCurrentPage(pageFromUrl);
+    }
+  }, []); // Empty dependency array - only run once on mount
 
   if (currentPage) {
     return <CanvasView pageName={currentPage} />;

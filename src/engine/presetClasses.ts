@@ -4,7 +4,7 @@ import type { ObjaxClass } from '../types';
 export const presetUIClasses: ObjaxClass[] = [
   {
     name: 'ButtonMorph',
-    code: 'define ButtonMorph\nButtonMorph has field "label"\nButtonMorph has field "onClick"',
+    code: 'ButtonMorph is a Class\nButtonMorph has field "label"\nButtonMorph has field "onClick"',
     fields: [
       { name: 'label', default: 'ボタン' },
       { name: 'onClick', default: '' }
@@ -13,19 +13,19 @@ export const presetUIClasses: ObjaxClass[] = [
   },
   {
     name: 'FieldMorph',
-    code: 'define FieldMorph\nFieldMorph has field "label"\nFieldMorph has field "value"\nFieldMorph has method "add" do set field "value" of myself to concatenate field "value" of myself with parameter',
+    code: 'FieldMorph is a Class\nFieldMorph has field "label"\nFieldMorph has field "value"\nFieldMorph has method "add" do self.value is parameter',
     fields: [
       { name: 'label', default: 'フィールド' },
       { name: 'value', default: '' },
       { name: 'type', default: 'text' }
     ],
     methods: [
-      { name: 'add', code: 'set field "value" of myself to parameter' }
+      { name: 'add', code: 'self.value is parameter' }
     ]
   },
   {
     name: 'ListMorph',
-    code: 'define ListMorph\nListMorph has field "label"\nListMorph has field "items"',
+    code: 'ListMorph is a Class\nListMorph has field "label"\nListMorph has field "items"',
     fields: [
       { name: 'label', default: 'リスト' },
       { name: 'items', default: [] }
@@ -34,7 +34,7 @@ export const presetUIClasses: ObjaxClass[] = [
   },
   {
     name: 'GroupMorph',
-    code: 'define GroupMorph\nGroupMorph has field "label"\nGroupMorph has field "children"',
+    code: 'GroupMorph is a Class\nGroupMorph has field "label"\nGroupMorph has field "children"',
     fields: [
       { name: 'label', default: 'グループ' },
       { name: 'children', default: [] },
@@ -48,25 +48,69 @@ export const presetUIClasses: ObjaxClass[] = [
   },
   {
     name: 'DatabaseMorph',
-    code: 'define DatabaseMorph\nDatabaseMorph has field "label"\nDatabaseMorph has field "dataSource"',
+    code: 'DatabaseMorph is a Class\nDatabaseMorph has field "label"\nDatabaseMorph has field "source"',
     fields: [
       { name: 'label', default: 'データベース' },
-      { name: 'dataSource', default: '' },
+      { name: 'source', default: '' },
       { name: 'viewMode', default: 'table' },
       { name: 'columns', default: [] }
     ],
     methods: []
   },
   {
+    name: 'BoxMorph',
+    code: 'BoxMorph is a Class\nBoxMorph has field "label"',
+    fields: [
+      { name: 'label', default: 'ボックス' },
+      { name: 'width', default: 100 },
+      { name: 'height', default: 50 },
+      { name: 'backgroundColor', default: '#ffffff' },
+      { name: 'borderColor', default: '#cccccc' },
+      { name: 'borderWidth', default: '1px' },
+      { name: 'borderRadius', default: '4px' },
+      { name: 'padding', default: '12px' },
+      { name: 'margin', default: '0px' },
+      { name: 'textColor', default: '#000000' },
+      { name: 'fontSize', default: '14px' },
+      { name: 'fontWeight', default: 'normal' },
+      { name: 'textAlign', default: 'left' },
+      { name: 'display', default: 'block' },
+      { name: 'position', default: 'static' },
+      { name: 'opacity', default: '1' },
+      { name: 'boxShadow', default: 'none' }
+    ],
+    methods: []
+  },
+  {
     name: 'State',
-    code: 'define State\nState has field "name"\nState has field "value"\nState has method "set" do set field "value" of myself to parameter\nState has method "get" do return field "value" of myself',
+    code: 'State is a Class\nState has field "name"\nState has field "value"\nState has method "set" do self.value is parameter\nState has method "get" do return field "value" of myself',
     fields: [
       { name: 'name', default: '' },
       { name: 'value', default: null }
     ],
     methods: [
-      { name: 'set', code: 'set field "value" of myself to parameter' },
+      { name: 'set', code: 'self.value is parameter' },
       { name: 'get', code: 'return field "value" of myself' }
     ]
+  },
+  {
+    name: 'World',
+    code: 'World is a Class\nWorld has field "currentPage"\nWorld has method "goto" with "page" do self.currentPage is page',
+    fields: [
+      { name: 'currentPage', default: '' }
+    ],
+    methods: [
+      { name: 'goto', code: 'self.currentPage is page' }
+    ]
+  },
+  {
+    name: 'Timer',
+    code: 'Timer is a Class\nTimer has field "time"\nTimer has field "action"\nTimer has field "isRunning"',
+    fields: [
+      { name: 'time', default: 1000 },
+      { name: 'action', default: '' },
+      { name: 'isRunning', default: false }
+    ],
+    methods: []
   }
 ];

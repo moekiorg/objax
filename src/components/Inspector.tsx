@@ -104,7 +104,7 @@ export function Inspector({
                     onUpdate?.(instance.id, { onClick: e.target.value })
                   }
                   className="inspector-textarea"
-                  placeholder='例: call "add" on myTasks with "New Task"'
+                  placeholder='例: myTasks add with item "New Task"'
                   rows={3}
                 />
               </div>
@@ -173,6 +173,26 @@ export function Inspector({
                     }
                     className="inspector-input"
                     placeholder="インスタンス名 (例: myTasks)"
+                  />
+                </div>
+
+                <div className="inspector-field">
+                  <label className="inspector-label">
+                    フィールド (カンマ区切り)
+                  </label>
+                  <textarea
+                    value={(instance.columns || []).join(", ")}
+                    onChange={(e) =>
+                      onUpdate?.(instance.id, {
+                        columns: e.target.value
+                          .split(",")
+                          .map((item) => item.trim())
+                          .filter(Boolean),
+                      })
+                    }
+                    className="inspector-textarea"
+                    placeholder="例: title, completed, priority"
+                    rows={3}
                   />
                 </div>
               </>

@@ -6,9 +6,9 @@ describe('Open Method Functionality', () => {
   it('should parse myTask open correctly', () => {
     const parser = new LinearObjaxParser();
     const code = `
-define Task
+Task is a Class
 Task has field "title"
-myTask is a new Task
+myTask is a Task
 myTask open
     `;
 
@@ -29,9 +29,9 @@ myTask open
     const executor = new ObjaxExecutor();
     
     const code = `
-define Task
+Task is a Class
 Task has field "title"
-myTask is a new Task
+myTask is a Task
 myTask open
     `;
 
@@ -51,10 +51,10 @@ myTask open
     const executor = new ObjaxExecutor();
     
     const code = `
-define Task
+Task is a Class
 Task has field "title"
-task1 is a new Task
-task2 is a new Task
+task1 is a Task
+task2 is a Task
 task1 open
     `;
 
@@ -91,11 +91,11 @@ nonExistentTask open
     const executor = new ObjaxExecutor();
     
     const code = `
-define Task
+Task is a Class
 Task has field "title"
-task1 is a new Task
-task2 is a new Task
-task3 is a new Task
+task1 is a Task
+task2 is a Task
+task3 is a Task
 task1 open
 task3 open
     `;
@@ -120,10 +120,10 @@ task3 open
     const executor = new ObjaxExecutor();
     
     const code = `
-define TaskList
+TaskList is a Class
 TaskList has field "items"
-myButton is a new ButtonMorph
-myTaskList is a new TaskList
+myButton is a ButtonMorph
+myTaskList is a TaskList
 myTaskList open
     `;
 

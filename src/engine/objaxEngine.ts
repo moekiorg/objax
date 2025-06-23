@@ -13,16 +13,61 @@ export class ObjaxEngine {
   }
 
   execute(code: string, existingClasses: ObjaxClassDefinition[] = [], existingInstances: ObjaxInstanceDefinition[] = []): ObjaxExecutionResult {
-    const parseResult = this.parser.parse(code);
+    const parseResult = this.parser.parse(code, existingInstances);
     
-    // Merge existing classes and instances with newly parsed ones
+    // Merge classes, handling duplicates by combining fields and methods
+    const mergedClasses = this.mergeClasses(existingClasses, parseResult.classes);
+    
     const mergedResult = {
       ...parseResult,
-      classes: [...existingClasses, ...parseResult.classes],
+      classes: mergedClasses,
       instances: [...existingInstances, ...parseResult.instances]
     };
     
-    return this.executor.execute(mergedResult);
+    return this.executor.execute(mergedResult, existingClasses);
+  }
+
+  // Execute a block by name
+  executeBlock(blockName: string, instances: ObjaxInstanceDefinition[] = [], allClasses: ObjaxClassDefinition[] = []): ObjaxExecutionResult {
+    return this.executor.executeBlock(blockName, instances, allClasses);
+  }
+
+  // Get all registered blocks
+  getRegisteredBlocks(): Map<string, string> {
+    return this.executor.getRegisteredBlocks();
+  }
+
+  private mergeClasses(existing: ObjaxClassDefinition[], parsed: ObjaxClassDefinition[]): ObjaxClassDefinition[] {
+    const classMap = new Map<string, ObjaxClassDefinition>();
+    
+    // Add existing classes to map
+    for (const cls of existing) {
+      classMap.set(cls.name, { ...cls });
+    }
+    
+    // Merge or add parsed classes
+    for (const cls of parsed) {
+      const existingClass = classMap.get(cls.name);
+      if (existingClass) {
+        // Merge fields (avoid duplicates)
+        const existingFieldNames = new Set(existingClass.fields.map(f => f.name));
+        const newFields = cls.fields.filter(f => !existingFieldNames.has(f.name));
+        
+        // Merge methods (avoid duplicates)
+        const existingMethodNames = new Set(existingClass.methods.map(m => m.name));
+        const newMethods = cls.methods.filter(m => !existingMethodNames.has(m.name));
+        
+        classMap.set(cls.name, {
+          ...existingClass,
+          fields: [...existingClass.fields, ...newFields],
+          methods: [...existingClass.methods, ...newMethods]
+        });
+      } else {
+        classMap.set(cls.name, { ...cls });
+      }
+    }
+    
+    return Array.from(classMap.values());
   }
 }
 
@@ -63,20 +108,38 @@ export function convertToClassDefinition(objaxClass: ObjaxClass): ObjaxClassDefi
 
 // Convert ObjaxInstance to ObjaxInstanceDefinition
 export function convertToInstanceDefinition(objaxInstance: ObjaxInstance): ObjaxInstanceDefinition {
+  // If properties exist, use them directly; otherwise, extract from objaxInstance
+  const properties = objaxInstance.properties || {
+    // Include all the UI properties as part of the instance properties
+    label: objaxInstance.label,
+    value: objaxInstance.value,
+    items: objaxInstance.items,
+    children: objaxInstance.children,
+    dataSource: objaxInstance.dataSource,
+    viewMode: objaxInstance.viewMode,
+    columns: objaxInstance.columns,
+    width: objaxInstance.width,
+    height: objaxInstance.height,
+    backgroundColor: objaxInstance.backgroundColor,
+    borderColor: objaxInstance.borderColor,
+    borderWidth: objaxInstance.borderWidth,
+    borderRadius: objaxInstance.borderRadius,
+    padding: objaxInstance.padding,
+    margin: objaxInstance.margin,
+    textColor: objaxInstance.textColor,
+    fontSize: objaxInstance.fontSize,
+    fontWeight: objaxInstance.fontWeight,
+    textAlign: objaxInstance.textAlign,
+    display: objaxInstance.display,
+    position: objaxInstance.position,
+    opacity: objaxInstance.opacity,
+    boxShadow: objaxInstance.boxShadow,
+  };
+
   return {
     name: objaxInstance.name,
     className: objaxInstance.className,
-    properties: {
-      ...objaxInstance,
-      // Include all the UI properties as part of the instance properties
-      label: objaxInstance.label,
-      value: objaxInstance.value,
-      items: objaxInstance.items,
-      children: objaxInstance.children,
-      dataSource: objaxInstance.dataSource,
-      viewMode: objaxInstance.viewMode,
-      columns: objaxInstance.columns
-    }
+    properties
   };
 }
 

@@ -36,15 +36,17 @@ export interface ObjaxInstance {
   label?: string;
   color?: string;
   width?: string;
+  height?: string;
   onChange?: string;
   onClick?: string;
   page: string;
-  type?: 'ButtonMorph' | 'FieldMorph' | 'ListMorph' | 'GroupMorph' | 'DatabaseMorph';
+  type?: 'ButtonMorph' | 'FieldMorph' | 'ListMorph' | 'GroupMorph' | 'DatabaseMorph' | 'BoxMorph' | 'Timer';
   value?: string | number | boolean;
   items?: string[];
   children?: string[];
   parentId?: string;
   order?: number;
+  isOpen?: boolean; // For controlling visibility of custom class instances
   // Layout properties for GroupMorph
   flexDirection?: 'row' | 'column' | 'row-reverse' | 'column-reverse';
   alignItems?: 'flex-start' | 'flex-end' | 'center' | 'stretch' | 'baseline';
@@ -55,6 +57,17 @@ export interface ObjaxInstance {
   dataSource?: string; // Reference to instance name
   viewMode?: 'table' | 'grid';
   columns?: string[]; // Field names to display
+  fields?: string[]; // Fields to display for DatabaseMorph (alternative naming for user convenience)
+  // Event listeners
+  eventListeners?: Array<{
+    eventType: 'click' | 'change' | 'input' | 'submit';
+    action: string;
+  }>;
+  // Timer properties
+  time?: number; // Timer interval in milliseconds
+  action?: string; // Timer action code
+  isRunning?: boolean; // Timer running state
+  intervalId?: number; // Internal interval ID for cleanup
 }
 
 export interface ObjaxProject {

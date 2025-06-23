@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { useObjaxStore } from '../stores/objaxStore';
 import { parseObjaxWithClasses } from '../engine/objaxEngine';
 import { presetUIClasses } from '../engine/presetClasses';
+import { presetInstances } from '../engine/presetInstances';
+import { convertToInstanceDefinition } from '../engine/objaxEngine';
 import { ObjectPreview } from './ObjectPreview';
 import { ClassBrowser } from './ClassBrowser';
 
@@ -19,7 +21,19 @@ export function PageEditor({ pageName }: PageEditorProps) {
     try {
       // Combine user-defined classes with preset UI classes
       const allClasses = [...presetUIClasses, ...classes];
-      const result = parseObjaxWithClasses(code, allClasses);
+      
+      // Convert preset instances to the expected format and combine with page instances
+      const presetInstanceDefs = presetInstances.map(inst => ({
+        id: `preset-${inst.name}`,
+        name: inst.name,
+        className: inst.className,
+        type: inst.className as any,
+        page: pageName,
+        order: 0,
+        ...inst.properties
+      }));
+      
+      const result = parseObjaxWithClasses(code, allClasses, presetInstanceDefs);
       
       // Add only new classes to store (skip preset UI classes)
       const newClasses = result.classes.slice(presetUIClasses.length + classes.length);
@@ -95,7 +109,7 @@ export function PageEditor({ pageName }: PageEditorProps) {
             <textarea
               value={code}
               onChange={(e) => setCode(e.target.value)}
-              placeholder="Enter Objax code here...&#10;&#10;Example:&#10;define Task&#10;Task has field &quot;title&quot;&#10;Task has field &quot;done&quot; has default false&#10;Task has method &quot;complete&quot; do set field &quot;done&quot; of myself to true&#10;myTask is a new Task"
+              placeholder="Enter Objax code here...&#10;&#10;Example:&#10;Task is a Class&#10;Task has field &quot;title&quot;&#10;Task has field &quot;done&quot; has default false&#10;Task has method &quot;complete&quot; do self.done is true&#10;myTask is a Task"
               className="page-editor-textarea"
             />
             <button

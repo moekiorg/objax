@@ -23,8 +23,19 @@ const mockDatabaseInstance: ObjaxInstance = {
   type: 'DatabaseMorph',
   dataSource: 'myTasks',
   viewMode: 'table',
-  columns: ['value'],
+  fields: ['value'],
   label: 'Task List'
+};
+
+const mockDatabaseInstanceNoFields: ObjaxInstance = {
+  id: '3',
+  name: 'emptyView',
+  className: 'DatabaseMorph',
+  page: 'test',
+  type: 'DatabaseMorph',
+  dataSource: 'myTasks',
+  viewMode: 'table',
+  label: 'Empty View'
 };
 
 describe('DatabaseMorph', () => {
@@ -37,7 +48,6 @@ describe('DatabaseMorph', () => {
     );
     
     expect(screen.getByText('Task List')).toBeInTheDocument();
-    expect(screen.getByText('→ myTasks')).toBeInTheDocument();
   });
 
   it('displays data in table format', () => {
@@ -82,7 +92,43 @@ describe('DatabaseMorph', () => {
       />
     );
     
-    expect(screen.getByText('No data to display')).toBeInTheDocument();
+    expect(screen.getByText('表示するデータがありません')).toBeInTheDocument();
+  });
+
+  it('shows only view mode buttons when no fields are set', () => {
+    render(
+      <DatabaseMorph 
+        instance={mockDatabaseInstanceNoFields}
+        dataInstances={mockDataInstances}
+      />
+    );
+    
+    // View mode buttons should be visible
+    expect(screen.getByText('テーブル')).toBeInTheDocument();
+    expect(screen.getByText('グリッド')).toBeInTheDocument();
+    
+    // No table or grid content should be displayed
+    expect(screen.queryByRole('table')).not.toBeInTheDocument();
+    expect(screen.queryByText('表示するデータがありません')).not.toBeInTheDocument();
+  });
+
+  it('shows only view mode buttons in grid mode when no fields are set', () => {
+    const gridInstance = { ...mockDatabaseInstanceNoFields, viewMode: 'grid' as const };
+    
+    render(
+      <DatabaseMorph 
+        instance={gridInstance}
+        dataInstances={mockDataInstances}
+      />
+    );
+    
+    // View mode buttons should be visible
+    expect(screen.getByText('テーブル')).toBeInTheDocument();
+    expect(screen.getByText('グリッド')).toBeInTheDocument();
+    
+    // No grid content should be displayed
+    expect(screen.queryByRole('table')).not.toBeInTheDocument();
+    expect(screen.queryByText('表示するデータがありません')).not.toBeInTheDocument();
   });
 
   it('shows view mode buttons', () => {
@@ -93,7 +139,7 @@ describe('DatabaseMorph', () => {
       />
     );
     
-    expect(screen.getByText('Table')).toBeInTheDocument();
-    expect(screen.getByText('Grid')).toBeInTheDocument();
+    expect(screen.getByText('テーブル')).toBeInTheDocument();
+    expect(screen.getByText('グリッド')).toBeInTheDocument();
   });
 });

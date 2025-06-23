@@ -1,14 +1,68 @@
-import type { ObjaxExecutionResult, ObjaxClassDefinition, ObjaxInstanceDefinition, ObjaxMethodCall, ObjaxListOperation, ObjaxVariableAssignment, ObjaxPrintStatement, ObjaxConnection, ObjaxMorphOperation, ObjaxMessageExecution } from './types'
+import type { ObjaxExecutionResult, ObjaxClassDefinition, ObjaxInstanceDefinition, ObjaxMethodCall, ObjaxListOperation, ObjaxVariableAssignment, ObjaxFieldAssignment, ObjaxPrintStatement, ObjaxConnection, ObjaxMorphOperation, ObjaxMessageExecution, ObjaxInstanceConfiguration, ObjaxEventListener, ObjaxBlockAssignment, ObjaxBlockCall, ObjaxBecomesAssignment, ObjaxExpression, ObjaxTimerOperation, ObjaxConditionalBlock, ObjaxConditionalExecution, ObjaxConditionalOtherwiseExecution, ObjaxCondition } from './types'
 import { LinearObjaxParser } from './linearParser'
 
 export class ObjaxExecutor {
-  execute(result: ObjaxExecutionResult): ObjaxExecutionResult {
+  private pageNavigations: any[] = []
+  private blockRegistry: Map<string, string> = new Map()
+  private blockParameters: Map<string, string[]> = new Map()
+  private conditionalBlockRegistry: Map<string, ObjaxCondition> = new Map()
+  private timers: Map<string, NodeJS.Timeout> = new Map()
+  
+  execute(result: ObjaxExecutionResult, allClasses: ObjaxClassDefinition[] = []): ObjaxExecutionResult {
     const instances = [...result.instances]
     const errors = [...result.errors]
     const printStatements = [...result.printStatements]
+    this.pageNavigations = [...result.pageNavigations]
 
-    // Process instances - no special constructor argument handling needed
-    // All properties are now passed as keyword arguments directly
+    // Process instances - apply default values from class definitions
+    // Combine parsed classes with passed allClasses (including presets)
+    const combinedClasses = [...result.classes, ...allClasses]
+    for (const instance of instances) {
+      try {
+        this.applyDefaultValues(instance, combinedClasses)
+      } catch (error) {
+        errors.push(`Error applying default values to instance "${instance.name}": ${error instanceof Error ? error.message : String(error)}`)
+      }
+    }
+
+    // Process block assignments
+    for (const blockAssignment of result.blockAssignments || []) {
+      try {
+        this.blockRegistry.set(blockAssignment.blockName, blockAssignment.blockBody)
+        if (blockAssignment.parameters) {
+          this.blockParameters.set(blockAssignment.blockName, blockAssignment.parameters)
+        }
+      } catch (error) {
+        errors.push(`Error processing block assignment: ${error instanceof Error ? error.message : String(error)}`)
+      }
+    }
+
+    // Process conditional blocks
+    for (const conditionalBlock of result.conditionalBlocks || []) {
+      try {
+        this.conditionalBlockRegistry.set(conditionalBlock.blockName, conditionalBlock.condition)
+      } catch (error) {
+        errors.push(`Error processing conditional block: ${error instanceof Error ? error.message : String(error)}`)
+      }
+    }
+
+    // Execute conditional executions
+    for (const conditionalExecution of result.conditionalExecutions || []) {
+      try {
+        this.executeConditionalExecution(conditionalExecution, instances, allClasses)
+      } catch (error) {
+        errors.push(`Error executing conditional execution: ${error instanceof Error ? error.message : String(error)}`)
+      }
+    }
+
+    // Execute conditional otherwise executions
+    for (const conditionalOtherwiseExecution of result.conditionalOtherwiseExecutions || []) {
+      try {
+        this.executeConditionalOtherwiseExecution(conditionalOtherwiseExecution, instances, allClasses)
+      } catch (error) {
+        errors.push(`Error executing conditional otherwise execution: ${error instanceof Error ? error.message : String(error)}`)
+      }
+    }
 
     // Execute method calls
     for (const methodCall of result.methodCalls) {
@@ -20,7 +74,7 @@ export class ObjaxExecutor {
     }
 
     // Execute list operations
-    for (const listOp of result.listOperations) {
+    for (const listOp of result.listOperations || []) {
       try {
         this.executeListOperation(listOp, instances)
       } catch (error) {
@@ -29,7 +83,7 @@ export class ObjaxExecutor {
     }
 
     // Execute connections
-    for (const connection of result.connections) {
+    for (const connection of result.connections || []) {
       try {
         this.executeConnection(connection, instances)
       } catch (error) {
@@ -38,7 +92,7 @@ export class ObjaxExecutor {
     }
 
     // Execute morph operations
-    for (const morphOp of result.morphOperations) {
+    for (const morphOp of result.morphOperations || []) {
       try {
         this.executeMorphOperation(morphOp, instances)
       } catch (error) {
@@ -47,11 +101,70 @@ export class ObjaxExecutor {
     }
 
     // Execute message executions
-    for (const messageExecution of result.messageExecutions) {
+    for (const messageExecution of result.messageExecutions || []) {
       try {
         this.executeMessageExecution(messageExecution, instances, result.classes)
       } catch (error) {
         errors.push(`Error executing message: ${error instanceof Error ? error.message : String(error)}`)
+      }
+    }
+
+    // Execute field assignments
+    for (const fieldAssignment of result.fieldAssignments || []) {
+      try {
+        this.executeFieldAssignment(fieldAssignment, instances)
+      } catch (error) {
+        errors.push(`Error executing field assignment: ${error instanceof Error ? error.message : String(error)}`)
+      }
+    }
+
+    // Execute becomes assignments
+    for (const becomesAssignment of result.becomesAssignments || []) {
+      try {
+        this.executeBecomesAssignment(becomesAssignment, instances)
+      } catch (error) {
+        errors.push(`Error executing becomes assignment: ${error instanceof Error ? error.message : String(error)}`)
+      }
+    }
+
+    // Execute block calls
+    for (const blockCall of result.blockCalls || []) {
+      try {
+        const blockResult = this.executeBlockWithArguments(blockCall.blockName, instances, allClasses, blockCall.arguments)
+        // Merge the block execution results back into current instances
+        instances.splice(0, instances.length, ...blockResult.instances)
+        errors.push(...blockResult.errors)
+      } catch (error) {
+        errors.push(`Error executing block call: ${error instanceof Error ? error.message : String(error)}`)
+      }
+    }
+
+    // Execute instance configurations
+    for (const config of result.instanceConfigurations || []) {
+      try {
+        this.executeInstanceConfiguration(config, instances)
+      } catch (error) {
+        errors.push(`Error executing instance configuration: ${error instanceof Error ? error.message : String(error)}`)
+      }
+    }
+
+    // Event listeners are attached to instances, no execution needed here
+    // They will be processed by the UI components
+    for (const eventListener of result.eventListeners || []) {
+      try {
+        this.attachEventListener(eventListener, instances)
+      } catch (error) {
+        errors.push(`Error attaching event listener: ${error instanceof Error ? error.message : String(error)}`)
+      }
+    }
+
+
+    // Execute timer operations
+    for (const timerOperation of result.timerOperations || []) {
+      try {
+        this.executeTimerOperation(timerOperation, instances)
+      } catch (error) {
+        errors.push(`Error executing timer operation: ${error instanceof Error ? error.message : String(error)}`)
       }
     }
 
@@ -62,7 +175,8 @@ export class ObjaxExecutor {
       ...result,
       instances,
       errors,
-      printStatements
+      printStatements,
+      pageNavigations: this.pageNavigations
     }
   }
 
@@ -71,7 +185,55 @@ export class ObjaxExecutor {
     instances: ObjaxInstanceDefinition[],
     classes: ObjaxClassDefinition[]
   ) {
-    const instance = instances.find(i => i.name === methodCall.instanceName)
+    // Handle special "create" method
+    if (methodCall.methodName === 'create') {
+      this.executeCreateMethod(methodCall, instances, classes)
+      return
+    }
+    
+    // Handle doAll method for class-level operations (before instance lookup)
+    if (methodCall.methodName === 'doAll') {
+      if (methodCall.keywordParameters && methodCall.keywordParameters.action) {
+        const actionName = methodCall.keywordParameters.action
+        const className = methodCall.instanceName // When called on a class
+        
+        // Find all instances of the specified class
+        const classInstances = instances.filter(inst => inst.className === className)
+        
+        // Execute the action block on each instance
+        const blockBody = this.blockRegistry.get(actionName)
+        if (blockBody) {
+          for (const instance of classInstances) {
+            try {
+              // Replace "self" with the instance name in the block body
+              const instanceSpecificBody = blockBody.replace(/\bself\b/g, instance.name)
+              
+              // Parse and execute the modified block body
+              const parser = new LinearObjaxParser()
+              const blockResult = parser.parse(instanceSpecificBody, instances)
+              this.execute(blockResult)
+            } catch (error) {
+              console.error(`Error executing doAll action ${actionName} on ${instance.name}:`, error)
+            }
+          }
+        }
+        return
+      }
+    }
+
+    let instance = instances.find(i => i.name === methodCall.instanceName)
+    
+    // Auto-create world instance if it doesn't exist and methodName is goto
+    if (!instance && methodCall.instanceName === 'world' && methodCall.methodName === 'goto') {
+      const worldInstance: ObjaxInstanceDefinition = {
+        name: 'world',
+        className: 'World',
+        properties: { currentPage: '' }
+      }
+      instances.push(worldInstance)
+      instance = worldInstance
+    }
+    
     if (!instance) {
       throw new Error(`Instance "${methodCall.instanceName}" not found`)
     }
@@ -99,10 +261,73 @@ export class ObjaxExecutor {
       }
       if (methodCall.methodName === 'get') {
         // Return the State's value (for now, just log it)
-        console.log(`State "${instance.properties.name || instance.name}" value:`, instance.properties.value)
         return
       }
     }
+
+    // Handle World class goto method
+    if (instance.className === 'World' && methodCall.methodName === 'goto') {
+      if (methodCall.keywordParameters && methodCall.keywordParameters.page) {
+        // Set the current page
+        instance.properties.currentPage = methodCall.keywordParameters.page
+        // Trigger page navigation (add to pageNavigations array)
+        const pageNavigation = {
+          pageName: methodCall.keywordParameters.page
+        }
+        this.pageNavigations.push(pageNavigation)
+        return
+      }
+    }
+
+    // Handle Timer class repeat method
+    if (instance.className === 'Timer' && methodCall.methodName === 'repeat') {
+      if (methodCall.keywordParameters && methodCall.keywordParameters.time && methodCall.keywordParameters.action) {
+        const timeValue = methodCall.keywordParameters.time
+        const actionName = methodCall.keywordParameters.action
+        
+        // Parse time (for now, assume "X second" format)
+        let intervalMs = 1000 // default 1 second
+        if (typeof timeValue === 'string') {
+          const timeMatch = timeValue.match(/(\d+)\s*(second|seconds|ms|milliseconds)/)
+          if (timeMatch) {
+            const amount = parseInt(timeMatch[1])
+            const unit = timeMatch[2]
+            if (unit.startsWith('second')) {
+              intervalMs = amount * 1000
+            } else if (unit.startsWith('ms') || unit.startsWith('millisecond')) {
+              intervalMs = amount
+            }
+          }
+        }
+
+        // Clear any existing timer for this instance
+        const timerId = `${methodCall.instanceName}_timer`
+        if (this.timers.has(timerId)) {
+          clearInterval(this.timers.get(timerId)!)
+        }
+
+        // Execute the action block
+        const executeAction = () => {
+          const blockBody = this.blockRegistry.get(actionName)
+          if (blockBody) {
+            try {
+              // Parse and execute the block body
+              const parser = new LinearObjaxParser()
+              const blockResult = parser.parse(blockBody, instances)
+              this.execute(blockResult)
+            } catch (error) {
+              console.error(`Error executing timer action ${actionName}:`, error)
+            }
+          }
+        }
+
+        // Start the timer
+        const timer = setInterval(executeAction, intervalMs)
+        this.timers.set(timerId, timer)
+        return
+      }
+    }
+
 
     const instanceClass = classes.find(c => c.name === instance.className)
     if (!instanceClass) {
@@ -114,8 +339,8 @@ export class ObjaxExecutor {
       throw new Error(`Method "${methodCall.methodName}" not found in class "${instance.className}". Available methods: ${instanceClass.methods.map(m => m.name).join(', ')}`)
     }
 
-    // Execute method body - for now, only handle simple field assignments
-    this.executeMethodBody(method.body, instance, methodCall.parameters, instances)
+    // Execute method body with keyword parameters and positional parameters
+    this.executeMethodBody(method.body, instance, methodCall.keywordParameters, instances, methodCall.parameters)
   }
 
   private resolveParameterValue(param: any, instances: ObjaxInstanceDefinition[]): any {
@@ -130,7 +355,8 @@ export class ObjaxExecutor {
     return param
   }
 
-  private executeMethodBody(body: string, instance: ObjaxInstanceDefinition, parameters?: any[], instances?: ObjaxInstanceDefinition[]) {
+  private executeMethodBody(body: string, instance: ObjaxInstanceDefinition, keywordParameters?: Record<string, any>, instances?: ObjaxInstanceDefinition[], positionalParameters?: any[]) {
+    
     if (!body) {
       throw new Error(`Method body is undefined or empty`)
     }
@@ -145,60 +371,81 @@ export class ObjaxExecutor {
 
     // Handle different method body patterns
     
-    // Pattern 1: "set field \"fieldName\" of myself to value"
-    const setFieldMatch = body.match(/set field "([^"]+)" of myself to (.+)/)
-    if (setFieldMatch) {
-      const fieldName = setFieldMatch[1]
-      let valueStr = setFieldMatch[2]
+    // Pattern 1: Multiple self field assignments separated by "and"
+    const multipleAssignments = body.includes(' and self.')
+    if (multipleAssignments) {
+      const assignments = body.split(' and ').map(s => s.trim())
       
-      // Replace parameter placeholders with actual values
-      if (parameters && instances) {
-        parameters.forEach((param, index) => {
-          const resolvedValue = this.resolveParameterValue(param, instances)
-          const paramName = `param${index + 1}` // Could be more sophisticated
-          valueStr = valueStr.replace(new RegExp(`\\b${paramName}\\b`, 'g'), typeof resolvedValue === 'string' ? `"${resolvedValue}"` : String(resolvedValue))
-        })
-        
-        // Also handle simple "parameter" keyword
-        if (valueStr === 'parameter' && parameters.length > 0) {
-          const resolvedValue = this.resolveParameterValue(parameters[0], instances)
-          valueStr = typeof resolvedValue === 'string' ? `"${resolvedValue}"` : String(resolvedValue)
+      for (const assignment of assignments) {
+        const selfFieldMatch = assignment.match(/self\.(\w+) is (.+)/)
+        if (selfFieldMatch) {
+          const fieldName = selfFieldMatch[1]
+          const paramName = selfFieldMatch[2]
+          
+          // Get the actual value from keyword parameters, positional parameters, or literal values
+          let value: any
+          if (keywordParameters && keywordParameters[paramName]) {
+            value = this.resolveParameterValue(keywordParameters[paramName], instances || [])
+          } else if (paramName === 'parameter' && positionalParameters && positionalParameters.length > 0) {
+            // Special handling for 'parameter' keyword - use first positional parameter
+            value = positionalParameters[0]
+          } else if (paramName === 'true') {
+            value = true
+          } else if (paramName === 'false') {
+            value = false
+          } else if (!isNaN(Number(paramName))) {
+            value = Number(paramName)
+          } else if (paramName.startsWith('"') && paramName.endsWith('"')) {
+            value = paramName.slice(1, -1) // Remove quotes
+          } else {
+            value = paramName
+          }
+          
+          instance.properties[fieldName] = value
         }
       }
+      return
+    }
+    
+    // Pattern 2: Single "self.fieldName is value"
+    const selfFieldMatch = body.match(/self\.(\w+) is (.+)/)
+    if (selfFieldMatch) {
+      const fieldName = selfFieldMatch[1]
+      const paramName = selfFieldMatch[2]
       
+      // Get the actual value from keyword parameters, positional parameters, or literal values
       let value: any
-      if (valueStr === 'true') {
+      if (keywordParameters && keywordParameters[paramName]) {
+        value = this.resolveParameterValue(keywordParameters[paramName], instances || [])
+      } else if (paramName === 'parameter' && positionalParameters && positionalParameters.length > 0) {
+        // Special handling for 'parameter' keyword - use first positional parameter
+        value = positionalParameters[0]
+      } else if (paramName === 'true') {
         value = true
-      } else if (valueStr === 'false') {
+      } else if (paramName === 'false') {
         value = false
-      } else if (!isNaN(Number(valueStr))) {
-        value = Number(valueStr)
-      } else if (valueStr.startsWith('"') && valueStr.endsWith('"')) {
-        value = valueStr.slice(1, -1) // Remove quotes
+      } else if (!isNaN(Number(paramName))) {
+        value = Number(paramName)
+      } else if (paramName.startsWith('"') && paramName.endsWith('"')) {
+        value = paramName.slice(1, -1) // Remove quotes
       } else {
-        // Check if it's a parameter reference
-        if (parameters && parameters.length > 0 && instances) {
-          // For now, just use the first parameter
-          value = this.resolveParameterValue(parameters[0], instances)
-        } else {
-          value = valueStr
-        }
+        value = paramName
       }
       
       instance.properties[fieldName] = value
       return
     }
 
-    // Pattern 2: Handle complex method body with multiple statements
+    // Pattern 3: Handle complex method body with multiple statements
     // Split by "and" to handle multiple statements
     const statements = body.split(' and ').map(s => s.trim());
     
     for (const statement of statements) {
-      // Handle instance creation: "varName is a new ClassName with param"
-      const instanceCreationMatch = statement.match(/(\w+) is a new (\w+) with (\w+)/);
+      // Handle instance creation: "varName is a ClassName with param"
+      const instanceCreationMatch = statement.match(/(\w+) is a (\w+) with (\w+)/);
       if (instanceCreationMatch) {
         const [, varName, className, paramName] = instanceCreationMatch;
-        const paramValue = parameters && parameters.length > 0 && instances ? this.resolveParameterValue(parameters[0], instances) : paramName;
+        const paramValue = keywordParameters && keywordParameters[paramName] && instances ? this.resolveParameterValue(keywordParameters[paramName], instances) : paramName;
         
         // For now, we'll store this as a temporary variable in the instance
         // In a more complete implementation, this would create a proper instance
@@ -241,16 +488,14 @@ export class ObjaxExecutor {
     
     return; // If we processed statements successfully
 
-    // Pattern 3: Simple parameter assignment to field
-    if (parameters && parameters.length > 0) {
-      // If no specific pattern matches, try to find a field to assign the parameter to
-      // This is a fallback for simple cases
-      const fieldPattern = body.match(/"([^"]+)"/)
-      if (fieldPattern) {
-        const fieldName = fieldPattern[1]
-        instance.properties[fieldName] = parameters[0]
-        return
-      }
+    // Pattern 4: Simple keyword parameter assignment to field
+    if (keywordParameters && Object.keys(keywordParameters).length > 0) {
+      // Store all keyword parameters as properties
+      Object.entries(keywordParameters).forEach(([key, value]) => {
+        const resolvedValue = instances ? this.resolveParameterValue(value, instances) : value
+        instance.properties[key] = resolvedValue
+      })
+      return
     }
 
     throw new Error(`Unsupported method body: ${body}`)
@@ -369,6 +614,16 @@ export class ObjaxExecutor {
         this.executeMethodCall(methodCall, instances, classes)
       }
       
+      // Execute any field assignments from the message context
+      for (const fieldAssignment of subResult.fieldAssignments) {
+        this.executeFieldAssignment(fieldAssignment, instances, classes)
+      }
+      
+      // Execute any let assignments from the message context
+      for (const becomesAssignment of subResult.becomesAssignments) {
+        this.executeBecomesAssignment(becomesAssignment, instances)
+      }
+      
       // Execute any state operations from the message context
       for (const stateOp of subResult.stateOperations) {
         // Note: State operations would need access to the global state store
@@ -378,5 +633,495 @@ export class ObjaxExecutor {
     } catch (error) {
       throw new Error(`Failed to execute message code: ${error instanceof Error ? error.message : String(error)}`)
     }
+  }
+
+  private executeInstanceConfiguration(
+    config: ObjaxInstanceConfiguration,
+    instances: ObjaxInstanceDefinition[]
+  ) {
+    const instance = instances.find(i => i.name === config.instanceName)
+    if (!instance) {
+      throw new Error(`Instance "${config.instanceName}" not found`)
+    }
+
+    switch (config.configurationType) {
+      case 'field':
+        // Add field to fields array for display
+        const currentFields = instance.properties.fields || []
+        const fieldName = config.value as string
+        if (!currentFields.includes(fieldName)) {
+          instance.properties.fields = [...currentFields, fieldName]
+        }
+        break
+      case 'dataSource':
+        instance.properties.dataSource = config.value
+        break
+      case 'viewMode':
+        instance.properties.viewMode = config.value
+        break
+      default:
+        throw new Error(`Unknown configuration type: ${config.configurationType}`)
+    }
+  }
+
+  private executeFieldAssignment(
+    fieldAssignment: ObjaxFieldAssignment,
+    instances: ObjaxInstanceDefinition[]
+  ) {
+    const instance = instances.find(i => i.name === fieldAssignment.instanceName)
+    if (!instance) {
+      throw new Error(`Instance "${fieldAssignment.instanceName}" not found`)
+    }
+
+    // Set the field value on the instance
+    instance.properties[fieldAssignment.fieldName] = fieldAssignment.values
+  }
+
+  private attachEventListener(
+    eventListener: ObjaxEventListener,
+    instances: ObjaxInstanceDefinition[]
+  ) {
+    const instance = instances.find(i => i.name === eventListener.instanceName)
+    if (!instance) {
+      throw new Error(`Instance "${eventListener.instanceName}" not found`)
+    }
+
+    // Initialize eventListeners array if it doesn't exist
+    if (!instance.properties.eventListeners) {
+      instance.properties.eventListeners = []
+    }
+
+    // Resolve block reference if needed
+    let resolvedAction = eventListener.action
+    if (eventListener.action.startsWith('@block:')) {
+      const blockName = eventListener.action.replace('@block:', '')
+      const blockBody = this.blockRegistry.get(blockName)
+      if (blockBody) {
+        resolvedAction = blockBody
+      } else {
+        throw new Error(`Block "${blockName}" not found for event listener`)
+      }
+    }
+
+    // Add the event listener to the instance
+    instance.properties.eventListeners.push({
+      eventType: eventListener.eventType,
+      action: resolvedAction
+    })
+  }
+
+  private executeCreateMethod(
+    methodCall: ObjaxMethodCall,
+    instances: ObjaxInstanceDefinition[],
+    classes: ObjaxClassDefinition[]
+  ) {
+    const className = methodCall.instanceName
+    
+    // Check if the class exists
+    const classDefinition = classes.find(c => c.name === className)
+    if (!classDefinition) {
+      throw new Error(`Class "${className}" not found`)
+    }
+    
+    // Generate auto-numbered instance name
+    const instanceName = this.generateInstanceName(className, instances)
+    
+    // Create properties with default values from class definition
+    const properties: Record<string, any> = {}
+    
+    // Set default values for fields
+    for (const field of classDefinition.fields) {
+      if (field.defaultValue !== undefined) {
+        properties[field.name] = field.defaultValue
+      }
+    }
+    
+    // Override with provided keyword parameters
+    if (methodCall.keywordParameters) {
+      Object.assign(properties, methodCall.keywordParameters)
+    }
+    
+    // Create the new instance
+    const newInstance: ObjaxInstanceDefinition = {
+      name: instanceName,
+      className: className,
+      properties
+    }
+    
+    instances.push(newInstance)
+  }
+
+  private generateInstanceName(className: string, instances: ObjaxInstanceDefinition[]): string {
+    // Convert class name to lowercase for instance name prefix
+    const prefix = className.toLowerCase()
+    
+    // Find existing instances with this prefix
+    const existingNumbers = instances
+      .filter(instance => instance.name.startsWith(prefix))
+      .map(instance => {
+        const match = instance.name.match(new RegExp(`^${prefix}(\\d+)$`))
+        return match ? parseInt(match[1], 10) : 0
+      })
+      .filter(num => num > 0)
+    
+    // Find the highest existing number and add 1
+    let nextNumber = 1
+    if (existingNumbers.length > 0) {
+      nextNumber = Math.max(...existingNumbers) + 1
+    }
+    
+    return `${prefix}${nextNumber}`
+  }
+
+  private executeBecomesAssignment(becomesAssignment: ObjaxBecomesAssignment, instances: ObjaxInstanceDefinition[]) {
+    // Evaluate the expression
+    const value = this.evaluateExpression(becomesAssignment.expression, instances)
+
+    // Assign to target
+    if (becomesAssignment.target.type === 'field') {
+      // Field assignment: "let box.width be expression"
+      const instanceName = becomesAssignment.target.instanceName!
+      const fieldName = becomesAssignment.target.fieldName!
+      
+      const instance = instances.find(i => i.name === instanceName)
+      if (!instance) {
+        throw new Error(`Instance "${instanceName}" not found`)
+      }
+
+      instance.properties[fieldName] = value
+    } else {
+      // Variable assignment: "let variableName be expression"
+      // For now, we'll store it in a global variables registry
+      // This could be extended in the future
+      const variableName = becomesAssignment.target.variableName!
+      // TODO: Implement variable storage if needed
+      console.log(`Variable assignment: ${variableName} = ${value}`)
+    }
+  }
+
+  private evaluateExpression(expression: ObjaxExpression, instances: ObjaxInstanceDefinition[]): any {
+    switch (expression.type) {
+      case 'literal':
+        return expression.value
+
+      case 'field':
+        // Field access: "box.width"
+        const instanceName = expression.instanceName!
+        const fieldName = expression.fieldName!
+        
+        const instance = instances.find(i => i.name === instanceName)
+        if (!instance) {
+          throw new Error(`Instance "${instanceName}" not found`)
+        }
+
+        const value = instance.properties[fieldName]
+        if (!(fieldName in instance.properties)) {
+          throw new Error(`Field "${fieldName}" not found on instance "${instanceName}"`)
+        }
+
+        return value
+
+      case 'variable':
+        // Variable access: implement if needed
+        throw new Error('Variable access not yet implemented')
+
+      case 'binary':
+        // Binary operation: "left operator right"
+        const left = this.evaluateExpression(expression.left!, instances)
+        const right = this.evaluateExpression(expression.right!, instances)
+
+        switch (expression.operator) {
+          case '+':
+            return left + right
+          case '-':
+            return left - right
+          case '*':
+            return left * right
+          case '/':
+            if (right === 0) {
+              throw new Error('Division by zero')
+            }
+            return left / right
+          default:
+            throw new Error(`Unsupported operator: ${expression.operator}`)
+        }
+
+      default:
+        throw new Error(`Unsupported expression type: ${expression.type}`)
+    }
+  }
+
+  private applyDefaultValues(instance: ObjaxInstanceDefinition, classes: ObjaxClassDefinition[]) {
+    // Find the class definition for this instance
+    const classDefinition = classes.find(cls => cls.name === instance.className)
+    
+    if (!classDefinition) {
+      // If no class definition found, this might be a preset class
+      // We'll need to handle this case at a higher level
+      return
+    }
+
+    // Apply default values for fields that don't have a value set
+    for (const field of classDefinition.fields) {
+      if (field.defaultValue !== undefined && !(field.name in instance.properties)) {
+        instance.properties[field.name] = field.defaultValue
+      }
+    }
+  }
+
+  // Execute a block by name (without arguments)
+  executeBlock(blockName: string, instances: ObjaxInstanceDefinition[], allClasses: ObjaxClassDefinition[] = []): ObjaxExecutionResult {
+    return this.executeBlockWithArguments(blockName, instances, allClasses, undefined)
+  }
+
+  // Execute a block by name with arguments
+  executeBlockWithArguments(blockName: string, instances: ObjaxInstanceDefinition[], allClasses: ObjaxClassDefinition[] = [], blockArguments?: Record<string, any>): ObjaxExecutionResult {
+    const blockBody = this.blockRegistry.get(blockName)
+    if (!blockBody) {
+      throw new Error(`Block "${blockName}" not found`)
+    }
+
+    // Get block parameters
+    const blockParams = this.blockParameters.get(blockName) || []
+    
+    // Substitute parameters with arguments in block body
+    let processedBlockBody = blockBody
+    if (blockArguments && blockParams.length > 0) {
+      for (const param of blockParams) {
+        if (blockArguments[param] !== undefined) {
+          // Replace parameter name with its value in the block body
+          const paramValue = blockArguments[param]
+          // Use word boundaries but handle string values with proper quoting
+          const escapedParam = param.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+          let valueString: string
+          if (typeof paramValue === 'string') {
+            valueString = `"${paramValue}"`  // Add quotes for string values
+          } else {
+            valueString = String(paramValue)
+          }
+          processedBlockBody = processedBlockBody.replace(new RegExp(`\\b${escapedParam}\\b`, 'g'), valueString)
+        }
+      }
+    }
+
+    // Split multiple statements by semicolon and execute each
+    const statements = processedBlockBody.split(';').map(s => s.trim()).filter(s => s.length > 0)
+    
+    let currentInstances = [...instances]
+    const allErrors: string[] = []
+    const allResults: any[] = []
+    
+    for (const statement of statements) {
+      // Parse and execute each statement
+      const parser = new LinearObjaxParser()
+      const parseResult = parser.parse(statement, currentInstances)
+      
+      // Merge with existing instances
+      const mergedResult = {
+        ...parseResult,
+        instances: [...currentInstances, ...parseResult.instances]
+      }
+      
+      // Execute the statement
+      const execResult = this.execute(mergedResult, allClasses)
+      
+      // Update current instances for next statement
+      currentInstances = execResult.instances
+      allErrors.push(...execResult.errors)
+      allResults.push(execResult)
+    }
+    
+    // Return the final result
+    return {
+      classes: allResults[allResults.length - 1]?.classes || [],
+      instances: currentInstances,
+      methodCalls: allResults.flatMap(r => r.methodCalls || []),
+      stateOperations: allResults.flatMap(r => r.stateOperations || []),
+      stateRetrievals: allResults.flatMap(r => r.stateRetrievals || []),
+      pageNavigations: allResults.flatMap(r => r.pageNavigations || []),
+      listOperations: allResults.flatMap(r => r.listOperations || []),
+      variableAssignments: allResults.flatMap(r => r.variableAssignments || []),
+      fieldAssignments: allResults.flatMap(r => r.fieldAssignments || []),
+      connections: allResults.flatMap(r => r.connections || []),
+      morphOperations: allResults.flatMap(r => r.morphOperations || []),
+      printStatements: allResults.flatMap(r => r.printStatements || []),
+      messageExecutions: allResults.flatMap(r => r.messageExecutions || []),
+      instanceConfigurations: allResults.flatMap(r => r.instanceConfigurations || []),
+      eventListeners: allResults.flatMap(r => r.eventListeners || []),
+      blockAssignments: allResults.flatMap(r => r.blockAssignments || []),
+      blockCalls: allResults.flatMap(r => r.blockCalls || []),
+      becomesAssignments: allResults.flatMap(r => r.becomesAssignments || []),
+      errors: allErrors
+    }
+  }
+
+  // Get all registered blocks
+  getRegisteredBlocks(): Map<string, string> {
+    return new Map(this.blockRegistry)
+  }
+
+
+  private executeTimerOperation(
+    timerOperation: ObjaxTimerOperation,
+    instances: ObjaxInstanceDefinition[]
+  ) {
+    const instance = instances.find(i => i.name === timerOperation.instanceName)
+    if (!instance) {
+      throw new Error(`Instance "${timerOperation.instanceName}" not found`)
+    }
+
+    // Set timer properties on the instance
+    instance.properties.time = timerOperation.time
+    instance.properties.action = timerOperation.action
+    instance.properties.isRunning = true
+
+    // Clear any existing timer for this instance
+    const timerId = `${timerOperation.instanceName}_timer`
+    if (this.timers.has(timerId)) {
+      clearInterval(this.timers.get(timerId)!)
+      this.timers.delete(timerId)
+    }
+
+    // Execute the action repeatedly
+    const executeTimerAction = () => {
+      try {
+        // Parse and execute the action code
+        const parser = new LinearObjaxParser()
+        const actionResult = parser.parse(timerOperation.action, instances)
+        this.execute(actionResult)
+      } catch (error) {
+        console.error(`Error executing timer action for ${timerOperation.instanceName}:`, error)
+      }
+    }
+
+    // Start the timer
+    const timer = setInterval(executeTimerAction, timerOperation.time)
+    this.timers.set(timerId, timer)
+    
+    // Store the interval ID on the instance for cleanup
+    instance.properties.intervalId = timer as any
+  }
+
+  // Method to stop a timer
+  stopTimer(instanceName: string) {
+    const timerId = `${instanceName}_timer`
+    if (this.timers.has(timerId)) {
+      clearInterval(this.timers.get(timerId)!)
+      this.timers.delete(timerId)
+    }
+  }
+
+  // Method to stop all timers (useful for cleanup)
+  stopAllTimers() {
+    for (const [timerId, timer] of this.timers) {
+      clearInterval(timer)
+    }
+    this.timers.clear()
+  }
+
+  private executeConditionalExecution(conditionalExecution: ObjaxConditionalExecution, instances: ObjaxInstanceDefinition[], allClasses: ObjaxClassDefinition[]) {
+    // Get the condition for this block
+    const condition = this.conditionalBlockRegistry.get(conditionalExecution.blockName)
+    if (!condition) {
+      throw new Error(`Conditional block "${conditionalExecution.blockName}" not found`)
+    }
+
+    // Evaluate the condition
+    const conditionResult = this.evaluateCondition(condition, instances)
+    
+    // If condition is true, execute the action
+    if (conditionResult) {
+      console.log(`Condition ${conditionalExecution.blockName} is true, executing action: ${conditionalExecution.action}`)
+      
+      // Parse and execute the action
+      const parser = new LinearObjaxParser()
+      const actionResult = parser.parse(conditionalExecution.action, instances)
+      
+      // Execute becomes assignments directly on the current instances array
+      for (const becomesAssignment of actionResult.becomesAssignments || []) {
+        try {
+          this.executeBecomesAssignment(becomesAssignment, instances)
+        } catch (error) {
+          console.error(`Error executing becomes assignment in conditional: ${error instanceof Error ? error.message : String(error)}`)
+        }
+      }
+      
+      // Execute other operations if needed
+      for (const methodCall of actionResult.methodCalls || []) {
+        try {
+          this.executeMethodCall(methodCall, instances, allClasses)
+        } catch (error) {
+          console.error(`Error executing method call in conditional: ${error instanceof Error ? error.message : String(error)}`)
+        }
+      }
+    } else {
+      console.log(`Condition ${conditionalExecution.blockName} is false, skipping action`)
+    }
+  }
+
+  private executeConditionalOtherwiseExecution(conditionalOtherwiseExecution: ObjaxConditionalOtherwiseExecution, instances: ObjaxInstanceDefinition[], allClasses: ObjaxClassDefinition[]) {
+    // Get the condition for this block
+    const condition = this.conditionalBlockRegistry.get(conditionalOtherwiseExecution.blockName)
+    if (!condition) {
+      throw new Error(`Conditional block "${conditionalOtherwiseExecution.blockName}" not found`)
+    }
+
+    // Evaluate the condition
+    const conditionResult = this.evaluateCondition(condition, instances)
+    
+    // If condition is FALSE, execute the otherwise action
+    if (!conditionResult) {
+      console.log(`Condition ${conditionalOtherwiseExecution.blockName} is false, executing otherwise action: ${conditionalOtherwiseExecution.otherwiseAction}`)
+      
+      // Parse and execute the action
+      const parser = new LinearObjaxParser()
+      const actionResult = parser.parse(conditionalOtherwiseExecution.otherwiseAction, instances)
+      
+      // Execute becomes assignments directly on the current instances array
+      for (const becomesAssignment of actionResult.becomesAssignments || []) {
+        try {
+          this.executeBecomesAssignment(becomesAssignment, instances)
+        } catch (error) {
+          console.error(`Error executing becomes assignment in conditional otherwise: ${error instanceof Error ? error.message : String(error)}`)
+        }
+      }
+      
+      // Execute other operations if needed
+      for (const methodCall of actionResult.methodCalls || []) {
+        try {
+          this.executeMethodCall(methodCall, instances, allClasses)
+        } catch (error) {
+          console.error(`Error executing method call in conditional otherwise: ${error instanceof Error ? error.message : String(error)}`)
+        }
+      }
+    } else {
+      console.log(`Condition ${conditionalOtherwiseExecution.blockName} is true, skipping otherwise action`)
+    }
+  }
+
+  private evaluateCondition(condition: ObjaxCondition, instances: ObjaxInstanceDefinition[]): boolean {
+    if (condition.type === 'comparison') {
+      const leftValue = this.evaluateExpression(condition.left, instances)
+      const rightValue = this.evaluateExpression(condition.right, instances)
+      
+      switch (condition.operator) {
+        case 'equal':
+          return leftValue === rightValue
+        case 'not_equal':
+          return leftValue !== rightValue
+        case 'greater':
+          return leftValue > rightValue
+        case 'less':
+          return leftValue < rightValue
+        case 'greater_equal':
+          return leftValue >= rightValue
+        case 'less_equal':
+          return leftValue <= rightValue
+        default:
+          throw new Error(`Unknown comparison operator: ${condition.operator}`)
+      }
+    }
+    
+    throw new Error(`Unknown condition type: ${condition.type}`)
   }
 }

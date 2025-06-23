@@ -4,9 +4,9 @@ import { LinearObjaxParser } from './linearParser';
 describe('Message Execution', () => {
   it('should parse message to instance', () => {
     const code = `
-      define Task
+      Task is a Class
       Task has field "title"
-      myTask is a new Task
+      myTask is a Task
       message to myTask "set field 'title' of it to 'Hello'"
     `;
     
@@ -22,11 +22,11 @@ describe('Message Execution', () => {
 
   it('should execute message with it context', () => {
     const code = `
-      define Task
+      Task is a Class
       Task has field "title"
-      Task has method "setTitle" do set field "title" of myself to "Updated"
-      myTask is a new Task
-      message to myTask "call 'setTitle' on it"
+      Task has method "setTitle" do self.title is "Updated"
+      myTask is a Task
+      message to myTask "it setTitle"
     `;
     
     const parser = new LinearObjaxParser();
@@ -41,12 +41,12 @@ describe('Message Execution', () => {
 
   it('should handle multiple message executions', () => {
     const code = `
-      define Task
+      Task is a Class
       Task has field "title"
-      myTask is a new Task
-      otherTask is a new Task
-      message to myTask "set field 'title' of it to 'First'"
-      message to otherTask "set field 'title' of it to 'Second'"
+      myTask is a Task
+      otherTask is a Task
+      message to myTask "it.title is 'First'"
+      message to otherTask "it.title is 'Second'"
     `;
     
     const parser = new LinearObjaxParser();

@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useCallback } from "react";
 import {
   DndContext,
   closestCenter,
@@ -18,6 +18,8 @@ import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { DraggableWindow } from "./DraggableWindow";
 import { ClassBrowser } from "./ClassBrowser";
+import { ClassInspector } from "./ClassInspector";
+import { ClassMessageWindow } from "./ClassMessageWindow";
 import { InstanceBrowser } from "./InstanceBrowser";
 import { WindowPlayground } from "./WindowPlayground";
 import { NewUIInstance } from "./NewUIInstance";
@@ -25,14 +27,15 @@ import { ButtonMorph } from "./morphs/ButtonMorph";
 import { FieldMorph } from "./morphs/FieldMorph";
 import { ListMorph } from "./morphs/ListMorph";
 import { GroupMorph } from "./morphs/GroupMorph";
+import { BoxMorph } from "./morphs/BoxMorph";
 import { DatabaseMorph } from "./DatabaseMorph";
 import { Halo } from "./Halo";
 import { Inspector } from "./Inspector";
-import { MessageWindow } from "./MessageWindow";
 import { WindowMessage } from "./WindowMessage";
 import { useObjaxStore } from "../stores/objaxStore";
 import { parseObjaxWithClasses } from "../engine/objaxEngine";
 import { presetUIClasses } from "../engine/presetClasses";
+import { executeEventAction } from "../utils/executeEventAction";
 
 interface CanvasViewProps {
   pageName: string;
@@ -42,6 +45,8 @@ interface WindowState {
   id: string;
   type:
     | "class-browser"
+    | "class-inspector"
+    | "class-message"
     | "playground"
     | "instance-browser"
     | "new-ui-instance"
@@ -50,6 +55,7 @@ interface WindowState {
   position: { x: number; y: number };
   instanceId?: string; // Inspector/Message用のインスタンスID
   instanceName?: string; // Message用のインスタンス名
+  className?: string; // ClassInspector/ClassMessage用のクラス名
 }
 
 interface SortableCanvasObjectProps {
@@ -98,8 +104,18 @@ function SortableCanvasObject({
 }
 
 export function CanvasView({ pageName }: CanvasViewProps) {
-  const { classes, instances, updateInstance, addInstance, removeInstance, setCurrentPageWithHistory, undo, canUndo } =
-    useObjaxStore();
+  const store = useObjaxStore();
+  const {
+    classes,
+    instances,
+    updateInstance,
+    addInstance,
+    removeInstance,
+    setCurrentPageWithHistory,
+    undo,
+    canUndo,
+    updateClass,
+  } = store;
   const [showContextMenu, setShowContextMenu] = useState(false);
   const [contextMenuPosition, setContextMenuPosition] = useState({
     x: 0,
@@ -137,6 +153,8 @@ export function CanvasView({ pageName }: CanvasViewProps) {
 
   const handleObjectClick = (e: React.MouseEvent, instance: any) => {
     e.stopPropagation();
+    
+    console.log('handleObjectClick called for:', instance.name, 'className:', instance.className, 'metaKey:', e.metaKey, 'ctrlKey:', e.ctrlKey);
 
     // Check for Cmd/Ctrl + Click for Halo
     if (e.metaKey || e.ctrlKey) {
@@ -145,92 +163,84 @@ export function CanvasView({ pageName }: CanvasViewProps) {
       setSelectedInstance(instance);
       setHaloTargetRect(rect);
       setShowContextMenu(false);
+      console.log('Opening Halo for', instance.name);
     } else {
-      // Handle normal click - execute onClick for ButtonMorph
-      if (instance.className === 'ButtonMorph') {
-        executeOnClick(instance);
+      // Handle normal click - execute event listeners for ButtonMorph
+      console.log('Normal click detected for', instance.name);
+      if (instance.className === "ButtonMorph") {
+        console.log('Executing button click for ButtonMorph:', instance.name);
+        executeButtonClick(instance);
+      } else {
+        console.log('Not a ButtonMorph, skipping execution');
       }
     }
   };
 
+  const executeButtonClick = useCallback((instance: any) => {
+    // Check for event listeners first (new system)
+    if (instance.eventListeners && instance.eventListeners.length > 0) {
+      const clickListener = instance.eventListeners.find(
+        (listener: any) => listener.eventType === "click"
+      );
+      
+      if (clickListener) {
+        try {
+          const errors = executeEventAction(clickListener.action, instance.name, store);
+          if (errors && errors.length > 0) {
+            console.error('Event execution errors:', errors);
+            alert(`Event Error: ${errors.join(', ')}`);
+          }
+        } catch (error) {
+          console.error('Failed to execute event action:', error);
+          alert(`Event Error: ${error instanceof Error ? error.message : String(error)}`);
+        }
+        return; // Exit early if we found and executed an event listener
+      }
+    }
+    
+    // Fallback to old onClick property (for backwards compatibility)
+    if (instance.onClick && instance.onClick.trim()) {
+      executeOnClick(instance);
+    }
+  }, [store]);
+
   const executeOnClick = (instance: any) => {
+    console.log('executeOnClick called for:', instance.name, 'with onClick:', instance.onClick);
+    
     if (instance.onClick && instance.onClick.trim()) {
       try {
-        // Only pass instances from the current page for better performance
-        const pageInstances = instances.filter(inst => inst.page === pageName);
-        // Combine user-defined classes with preset UI classes
-        const allClasses = [...presetUIClasses, ...classes];
-        const result = parseObjaxWithClasses(instance.onClick, allClasses, pageInstances);
+        // Store the onClick value before execution to restore it later
+        const originalOnClick = instance.onClick;
         
-        // Apply any changes from the execution result
-        if (result.instances && result.instances.length > 0) {
-          // Batch instance updates for better performance
-          result.instances.forEach((resultInstance) => {
-            // Check if instance already exists (by name)
-            const existingInstance = pageInstances.find(pi => pi.name === resultInstance.name);
-            
-            if (existingInstance) {
-              // Update existing instance
-              updateInstance(existingInstance.id, {
-                ...resultInstance.properties,
-                className: resultInstance.className,
-                name: resultInstance.name
-              });
-            } else {
-              // Add new instance
-              addInstance({
-                id: `${pageName}-${resultInstance.name}-${Date.now()}`,
-                name: resultInstance.name,
-                className: resultInstance.className,
-                type: resultInstance.className as any,
-                page: pageName,
-                order: Date.now(),
-                ...resultInstance.properties
-              });
-            }
-          });
-        }
+        console.log('Executing onClick for', instance.name, ':', originalOnClick);
         
-        // Handle state updates (if available)
-        // Note: stateUpdates feature not yet implemented
+        // Use executeEventAction for execution
+        const errors = executeEventAction(instance.onClick, instance.name, store);
         
-        if (result.pageNavigations && result.pageNavigations.length > 0) {
-          result.pageNavigations.forEach((pageNav) => {
-            setCurrentPageWithHistory(pageNav.pageName);
-          });
-        }
+        // Restore onClick property after execution to prevent it from being lost
+        setTimeout(() => {
+          const currentInstance = instances.find(i => i.id === instance.id);
+          if (currentInstance && !currentInstance.onClick) {
+            console.log(`Restoring onClick for ${instance.name}`);
+            updateInstance(instance.id, { onClick: originalOnClick });
+          }
+        }, 10);
         
-        // Legacy single pageNavigation support removed (use pageNavigations array)
-        
-        // Handle morph operations
-        if (result.morphOperations && result.morphOperations.length > 0) {
-          result.morphOperations.forEach((morphOp) => {
-            if (morphOp.operation === 'add') {
-              const childInstance = pageInstances.find(pi => pi.name === morphOp.childInstance);
-              const parentInstance = pageInstances.find(pi => pi.name === morphOp.parentInstance);
-              
-              if (childInstance && parentInstance) {
-                // Update parent's children
-                const currentChildren = parentInstance.children || [];
-                if (!currentChildren.includes(childInstance.id)) {
-                  updateInstance(parentInstance.id, {
-                    children: [...currentChildren, childInstance.id]
-                  });
-                }
-                
-                // Update child's parent
-                updateInstance(childInstance.id, {
-                  parentId: parentInstance.id
-                });
-              }
-            }
-          });
+        if (errors && errors.length > 0) {
+          console.error('OnClick execution errors:', errors);
+          alert(`OnClick Error: ${errors.join(', ')}`);
+        } else {
+          console.log('OnClick executed successfully for', instance.name);
         }
       } catch (error) {
         // Show error message to user
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+        const errorMessage =
+          error instanceof Error ? error.message : "Unknown error occurred";
+        console.error('OnClick execution error for', instance.name, ':', error);
         alert(`Objax Code Error: ${errorMessage}`);
       }
+    } else {
+      console.log('No onClick defined for', instance.name);
     }
   };
 
@@ -308,39 +318,116 @@ export function CanvasView({ pageName }: CanvasViewProps) {
   const handleSendMessage = (instanceName: string, code: string) => {
     try {
       // Build the message execution code
-      const messageCode = `message to ${instanceName} "${code.replace(/"/g, '\\"')}"`;
-      
+      const messageCode = `message to ${instanceName} "${code.replace(
+        /"/g,
+        '\\"'
+      )}"`;
+
       // Execute the message
-      const pageInstances = instances.filter(inst => inst.page === pageName);
+      const pageInstances = instances.filter((inst) => inst.page === pageName);
       const allClasses = [...presetUIClasses, ...classes];
-      const result = parseObjaxWithClasses(messageCode, allClasses, pageInstances);
-      
+      const result = parseObjaxWithClasses(
+        messageCode,
+        allClasses,
+        pageInstances
+      );
+
       // Apply any changes from the execution result
       if (result.instances && result.instances.length > 0) {
         result.instances.forEach((resultInstance) => {
-          const existingInstance = pageInstances.find(pi => pi.name === resultInstance.name);
-          
+          const existingInstance = pageInstances.find(
+            (pi) => pi.name === resultInstance.name
+          );
+
           if (existingInstance) {
             updateInstance(existingInstance.id, {
               ...resultInstance.properties,
               className: resultInstance.className,
-              name: resultInstance.name
+              name: resultInstance.name,
             });
           }
         });
       }
-      
+
       // Handle page navigation if any
       if (result.pageNavigations && result.pageNavigations.length > 0) {
-        const lastNavigation = result.pageNavigations[result.pageNavigations.length - 1];
+        const lastNavigation =
+          result.pageNavigations[result.pageNavigations.length - 1];
         setCurrentPageWithHistory(lastNavigation.pageName);
       }
-      
+
       if (result.errors && result.errors.length > 0) {
-        console.error('Message execution errors:', result.errors);
+        console.error("Message execution errors:", result.errors);
       }
     } catch (error) {
-      console.error('Failed to send message:', error);
+      console.error("Failed to send message:", error);
+    }
+  };
+
+  const handleSendClassMessage = (className: string, message: string) => {
+    try {
+      // Replace 'it' (case-insensitive) with the actual class name
+      const processedMessage = message.replace(/\bit\b/gi, className);
+
+      // Execute the class message directly
+      const allClasses = [...presetUIClasses, ...classes];
+      const pageInstances = instances.filter((inst) => inst.page === pageName);
+      const result = parseObjaxWithClasses(
+        processedMessage,
+        allClasses,
+        pageInstances
+      );
+
+      // Apply any class updates from the execution result
+      if (result.classes && result.classes.length > 0) {
+        result.classes.forEach((resultClass) => {
+          const { methods, ...classUpdates } = resultClass;
+          const convertedMethods = (methods || []).map((method) => ({
+            name: method.name,
+            code: method.body || "",
+          }));
+          updateClass(resultClass.name, {
+            ...classUpdates,
+            methods: convertedMethods,
+          });
+        });
+      }
+
+      // Apply any instance updates from the execution result
+      if (result.instances && result.instances.length > 0) {
+        result.instances.forEach((resultInstance) => {
+          const existingInstance = pageInstances.find(
+            (pi) => pi.name === resultInstance.name
+          );
+
+          if (existingInstance) {
+            updateInstance(existingInstance.id, {
+              ...resultInstance.properties,
+              className: resultInstance.className,
+              name: resultInstance.name,
+            });
+          } else {
+            // Add new instance
+            addInstance({
+              id: `${pageName}-${resultInstance.name}-${Date.now()}`,
+              name: resultInstance.name,
+              className: resultInstance.className,
+              type: resultInstance.className as any,
+              page: pageName,
+              order: instances.filter((i) => i.page === pageName).length,
+              ...resultInstance.properties,
+            });
+          }
+        });
+      }
+
+      if (result.errors && result.errors.length > 0) {
+        console.error("Class message execution errors:", result.errors);
+        throw new Error(result.errors.join(", "));
+      }
+    } catch (error) {
+      console.error("Failed to send class message:", error);
+      throw error;
     }
   };
 
@@ -421,7 +508,6 @@ export function CanvasView({ pageName }: CanvasViewProps) {
       }
     }
   };
-
 
   const handleDragStart = (event: any) => {
     setActiveId(event.active.id);
@@ -625,7 +711,7 @@ export function CanvasView({ pageName }: CanvasViewProps) {
   React.useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Check for Cmd+Z (Mac) or Ctrl+Z (Windows/Linux)
-      if ((e.metaKey || e.ctrlKey) && e.key === 'z' && !e.shiftKey) {
+      if ((e.metaKey || e.ctrlKey) && e.key === "z" && !e.shiftKey) {
         e.preventDefault();
         if (canUndo()) {
           undo();
@@ -633,9 +719,9 @@ export function CanvasView({ pageName }: CanvasViewProps) {
       }
     };
 
-    document.addEventListener('keydown', handleKeyDown);
+    document.addEventListener("keydown", handleKeyDown);
     return () => {
-      document.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener("keydown", handleKeyDown);
     };
   }, [undo, canUndo]);
 
@@ -647,9 +733,8 @@ export function CanvasView({ pageName }: CanvasViewProps) {
           className="back-to-pages-btn"
           onClick={() => setCurrentPageWithHistory(null)}
         >
-          ← ページ一覧に戻る
+          Home
         </button>
-        <h1 className="page-title">{pageName}</h1>
       </header>
 
       {/* Background area */}
@@ -679,16 +764,24 @@ export function CanvasView({ pageName }: CanvasViewProps) {
                     (instance) =>
                       instance.page === pageName && !instance.parentId
                   );
-                  
-                  const filteredInstances = pageInstances.filter((instance) => {
-                    const uiMorphs = ['ButtonMorph', 'FieldMorph', 'ListMorph', 'GroupMorph', 'DatabaseMorph'];
-                    if (uiMorphs.includes(instance.className)) {
-                      // UI Morphs are shown by default, but can be hidden if isOpen is explicitly false
-                      return instance.isOpen !== false;
-                    }
-                    return instance.isOpen === true;
-                  }).sort((a, b) => (a.order || 0) - (b.order || 0));
-                  
+
+                  const filteredInstances = pageInstances
+                    .filter((instance) => {
+                      const uiMorphs = [
+                        "ButtonMorph",
+                        "FieldMorph",
+                        "ListMorph",
+                        "GroupMorph",
+                        "DatabaseMorph",
+                      ];
+                      if (uiMorphs.includes(instance.className)) {
+                        // UI Morphs are shown by default, but can be hidden if isOpen is explicitly false
+                        return instance.isOpen !== false;
+                      }
+                      return instance.isOpen === true;
+                    })
+                    .sort((a, b) => (a.order || 0) - (b.order || 0));
+
                   return filteredInstances.map((instance) => instance.id);
                 })()}
                 strategy={horizontalListSortingStrategy}
@@ -698,36 +791,57 @@ export function CanvasView({ pageName }: CanvasViewProps) {
                     (instance) =>
                       instance.page === pageName && !instance.parentId
                   );
-                  
-                  console.log('Page instances (after parentId filter):', pageInstances);
-                  
+
+                  console.log(
+                    "Page instances (after parentId filter):",
+                    pageInstances
+                  );
+
                   // Debug: Show all instances with their parentId
-                  instances.filter(i => i.page === pageName).forEach(instance => {
-                    console.log(`All instances debug - ${instance.name}: parentId=${instance.parentId}`);
-                  });
-                  
-                  const filteredInstances = pageInstances.filter((instance) => {
-                    // Show instances that are either:
-                    // 1. UI Morphs (ButtonMorph, FieldMorph, etc.) - shown by default, but can be hidden if isOpen is false
-                    // 2. Custom classes with isOpen === true
-                    const uiMorphs = ['ButtonMorph', 'FieldMorph', 'ListMorph', 'GroupMorph', 'DatabaseMorph'];
-                    const isUIMorph = uiMorphs.includes(instance.className);
-                    const isOpenCustomClass = instance.isOpen === true;
-                    
-                    console.log(`Instance ${instance.name} (${instance.className}): isUIMorph=${isUIMorph}, isOpen=${instance.isOpen}, parentId=${instance.parentId}`);
-                    
-                    if (isUIMorph) {
-                      // UI Morphs are shown by default, but can be hidden if isOpen is explicitly false
-                      return instance.isOpen !== false;
-                    }
-                    // For custom classes, only show if isOpen is true
-                    return isOpenCustomClass;
-                  }).sort((a, b) => (a.order || 0) - (b.order || 0));
-                  
-                  console.log('Canvas instances to render:', filteredInstances);
-                  console.log('All instances for page:', instances.filter(i => i.page === pageName));
-                  console.log('Page name:', pageName);
-                  
+                  instances
+                    .filter((i) => i.page === pageName)
+                    .forEach((instance) => {
+                      console.log(
+                        `All instances debug - ${instance.name}: parentId=${instance.parentId}`
+                      );
+                    });
+
+                  const filteredInstances = pageInstances
+                    .filter((instance) => {
+                      // Show instances that are either:
+                      // 1. UI Morphs (ButtonMorph, FieldMorph, etc.) - shown by default, but can be hidden if isOpen is false
+                      // 2. Custom classes with isOpen === true
+                      const uiMorphs = [
+                        "ButtonMorph",
+                        "FieldMorph",
+                        "ListMorph",
+                        "GroupMorph",
+                        "DatabaseMorph",
+                        "BoxMorph",
+                      ];
+                      const isUIMorph = uiMorphs.includes(instance.className);
+                      const isOpenCustomClass = instance.isOpen === true;
+
+                      console.log(
+                        `Instance ${instance.name} (${instance.className}): isUIMorph=${isUIMorph}, isOpen=${instance.isOpen}, parentId=${instance.parentId}`
+                      );
+
+                      if (isUIMorph) {
+                        // UI Morphs are shown by default, but can be hidden if isOpen is explicitly false
+                        return instance.isOpen !== false;
+                      }
+                      // For custom classes, only show if isOpen is true
+                      return isOpenCustomClass;
+                    })
+                    .sort((a, b) => (a.order || 0) - (b.order || 0));
+
+                  console.log("Canvas instances to render:", filteredInstances);
+                  console.log(
+                    "All instances for page:",
+                    instances.filter((i) => i.page === pageName)
+                  );
+                  console.log("Page name:", pageName);
+
                   return filteredInstances.map((instance) => (
                     <SortableCanvasObject
                       key={instance.id}
@@ -768,19 +882,19 @@ export function CanvasView({ pageName }: CanvasViewProps) {
               className="context-menu-item"
               onClick={(e) => {
                 e.stopPropagation();
-                openWindow("class-browser");
+                openWindow("playground");
               }}
             >
-              クラスブラウザ
+              プレイグラウンド
             </div>
             <div
               className="context-menu-item"
               onClick={(e) => {
                 e.stopPropagation();
-                openWindow("playground");
+                openWindow("class-browser");
               }}
             >
-              プレイグラウンド
+              クラスブラウザ
             </div>
             <div
               className="context-menu-item"
@@ -807,11 +921,21 @@ export function CanvasView({ pageName }: CanvasViewProps) {
         {windows.map((window) => (
           <DraggableWindow
             key={window.id}
-            title={getWindowTitle(window.type, window.instanceId, window.instanceName)}
+            title={getWindowTitle(
+              window.type,
+              window.instanceId,
+              window.instanceName,
+              window.className
+            )}
             onClose={() => closeWindow(window.id)}
             initialPosition={window.position}
           >
-            {renderWindowContent(window.type, window.instanceId, window.instanceName)}
+            {renderWindowContent(
+              window.type,
+              window.instanceId,
+              window.instanceName,
+              window.className
+            )}
           </DraggableWindow>
         ))}
 
@@ -826,7 +950,6 @@ export function CanvasView({ pageName }: CanvasViewProps) {
             onResizeStart={handleHaloResizeStart}
           />
         )}
-
       </div>
     </div>
   );
@@ -834,11 +957,16 @@ export function CanvasView({ pageName }: CanvasViewProps) {
   function getWindowTitle(
     type: WindowState["type"],
     instanceId?: string,
-    instanceName?: string
+    instanceName?: string,
+    className?: string
   ): string {
     switch (type) {
       case "class-browser":
         return "クラスブラウザ";
+      case "class-inspector":
+        return `インスペクター - ${className || "不明"}`;
+      case "class-message":
+        return `メッセージ - ${className || "不明"}`;
       case "playground":
         return "プレイグラウンド";
       case "instance-browser":
@@ -859,45 +987,76 @@ export function CanvasView({ pageName }: CanvasViewProps) {
   function renderWindowContent(
     type: WindowState["type"],
     instanceId?: string,
-    instanceName?: string
+    instanceName?: string,
+    className?: string
   ): React.ReactNode {
     switch (type) {
       case "class-browser":
-        return <ClassBrowser classes={classes} />;
+        return (
+          <ClassBrowser
+            classes={classes}
+            onClassClick={(className) => {
+              // Open class inspector window
+              const newWindow: WindowState = {
+                id: `class-inspector-${className}-${Date.now()}`,
+                type: "class-inspector",
+                position: {
+                  x: 350,
+                  y: 150,
+                },
+                className: className,
+              };
+              setWindows((prev) => [...prev, newWindow]);
+            }}
+          />
+        );
+      case "class-inspector":
+        if (!className) return <div>クラス名が見つかりません</div>;
+        return <ClassInspector className={className} classes={classes} />;
+      case "class-message":
+        if (!className) return <div>クラス名が見つかりません</div>;
+        return (
+          <ClassMessageWindow
+            className={className}
+            onSend={handleSendClassMessage}
+          />
+        );
       case "playground":
         return <WindowPlayground pageName={pageName} />;
       case "instance-browser":
-        return <InstanceBrowser 
-          pageName={pageName} 
-          instances={instances} 
-          onInspect={(instance) => {
-            // Open inspector window for this instance
-            const newWindow: WindowState = {
-              id: `inspector-${instance.id}-${Date.now()}`,
-              type: "inspector",
-              position: {
-                x: 300,
-                y: 200,
-              },
-              instanceId: instance.id,
-            };
-            setWindows((prev) => [...prev, newWindow]);
-          }}
-          onMessage={(instance) => {
-            // Open message window
-            const newWindow: WindowState = {
-              id: `message-${instance.id}-${Date.now()}`,
-              type: "message",
-              position: {
-                x: 400,
-                y: 200,
-              },
-              instanceId: instance.id,
-              instanceName: instance.name,
-            };
-            setWindows((prev) => [...prev, newWindow]);
-          }}
-        />;
+        return (
+          <InstanceBrowser
+            pageName={pageName}
+            instances={instances}
+            onInspect={(instance) => {
+              // Open inspector window for this instance
+              const newWindow: WindowState = {
+                id: `inspector-${instance.id}-${Date.now()}`,
+                type: "inspector",
+                position: {
+                  x: 300,
+                  y: 200,
+                },
+                instanceId: instance.id,
+              };
+              setWindows((prev) => [...prev, newWindow]);
+            }}
+            onMessage={(instance) => {
+              // Open message window
+              const newWindow: WindowState = {
+                id: `message-${instance.id}-${Date.now()}`,
+                type: "message",
+                position: {
+                  x: 400,
+                  y: 200,
+                },
+                instanceId: instance.id,
+                instanceName: instance.name,
+              };
+              setWindows((prev) => [...prev, newWindow]);
+            }}
+          />
+        );
       case "new-ui-instance":
         return <NewUIInstance />;
       case "inspector": {
@@ -916,7 +1075,9 @@ export function CanvasView({ pageName }: CanvasViewProps) {
             onDelete={(id) => {
               removeInstance(id);
               // Close the inspector window after deletion
-              const inspectorWindow = windows.find(w => w.instanceId === id && w.type === "inspector");
+              const inspectorWindow = windows.find(
+                (w) => w.instanceId === id && w.type === "inspector"
+              );
               if (inspectorWindow) {
                 closeWindow(inspectorWindow.id);
               }
@@ -926,7 +1087,7 @@ export function CanvasView({ pageName }: CanvasViewProps) {
       }
       case "message": {
         if (!instanceName) return <div>インスタンス名が見つかりません</div>;
-        
+
         return (
           <WindowMessage
             targetInstance={instanceName}
@@ -953,19 +1114,26 @@ export function CanvasView({ pageName }: CanvasViewProps) {
 
     // Use className primarily, fallback to type if className is not set
     const objectType = instance.className || instance.type;
-    
+
     switch (objectType) {
       case "ButtonMorph":
         return (
           <div ref={handleRef} style={sizeStyle}>
             <ButtonMorph
               label={instance.label || instance.name}
-              onClick={() => {}} // Empty onClick - handled by handleObjectClick
+              // Don't override onClick - let handleObjectClick handle it
             />
           </div>
         );
       case "FieldMorph":
-        console.log('Rendering FieldMorph:', instance.name, 'value:', instance.value, 'label:', instance.label);
+        console.log(
+          "Rendering FieldMorph:",
+          instance.name,
+          "value:",
+          instance.value,
+          "label:",
+          instance.label
+        );
         return (
           <div ref={handleRef} style={sizeStyle}>
             <FieldMorph
@@ -1055,21 +1223,36 @@ export function CanvasView({ pageName }: CanvasViewProps) {
             />
           </div>
         );
+      case "BoxMorph":
+        return (
+          <div ref={handleRef}>
+            <BoxMorph instance={instance} />
+          </div>
+        );
       case "TaskList":
         // Handle custom classes like TaskList
         return (
           <div ref={handleRef} style={sizeStyle}>
             <div className="p-4 border rounded bg-gray-50">
               <h3 className="font-medium">{instance.name}</h3>
-              <p className="text-sm text-gray-600">TaskList ({instance.className})</p>
+              <p className="text-sm text-gray-600">
+                TaskList ({instance.className})
+              </p>
               {instance.items && instance.items.length > 0 && (
                 <div className="mt-2">
-                  <p className="text-xs text-gray-500">Items: {instance.items.length}</p>
+                  <p className="text-xs text-gray-500">
+                    Items: {instance.items.length}
+                  </p>
                   <ul className="text-xs">
                     {instance.items.slice(0, 3).map((item, idx) => (
-                      <li key={idx}>• {typeof item === 'object' ? JSON.stringify(item) : item}</li>
+                      <li key={idx}>
+                        •{" "}
+                        {typeof item === "object" ? JSON.stringify(item) : item}
+                      </li>
                     ))}
-                    {instance.items.length > 3 && <li>... and {instance.items.length - 3} more</li>}
+                    {instance.items.length > 3 && (
+                      <li>... and {instance.items.length - 3} more</li>
+                    )}
                   </ul>
                 </div>
               )}
@@ -1078,7 +1261,12 @@ export function CanvasView({ pageName }: CanvasViewProps) {
         );
       default:
         // Unknown object type
-        return <div>不明なオブジェクトタイプ: {objectType} (className: {instance.className}, type: {instance.type})</div>;
+        return (
+          <div>
+            不明なオブジェクトタイプ: {objectType} (className:{" "}
+            {instance.className}, type: {instance.type})
+          </div>
+        );
     }
   }
 }
